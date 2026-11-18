@@ -34,7 +34,14 @@ describe("the in-game tests", function()
     end)
 
     it("register one group named after the folder, run at login, and all pass on the test client", function()
-        for _, opts in ipairs({ { eltruism = true, windtools = true }, { rxp = false, loreward = false } }) do
+        -- Default settings, without the guide addons, and as a player may have it: the transparent
+        -- style and an ElvUI font other than the plugin's own.
+        local setups = {
+            { eltruism = true, windtools = true },
+            { rxp = false, loreward = false },
+            { db = { style = "transparent" }, elvuiFont = "Roboto" },
+        }
+        for _, opts in ipairs(setups) do
             local unit = FakeWoWUnit()
             _G.WoWUnit = unit
             NewClient(opts)

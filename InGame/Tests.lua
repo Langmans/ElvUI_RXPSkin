@@ -136,7 +136,8 @@ function Tests:AWatchedWindowsTextKeepsTheChosenFont()
     local fs = f:CreateFontString(nil, "OVERLAY", "GameFontNormal") --[[@as FontString]]
     ns.Fonts.Watch(f)
     fs:SetFont("Fonts\\MORPHEUS.ttf", 15, "")
-    AreEqual(E.Libs.LSM:Fetch("font", ns.db().font), (fs:GetFont()))
+    -- The font in use: ElvUI's general one while the plugin follows it, else its own.
+    AreEqual(E.Libs.LSM:Fetch("font", (ns.Fonts.Current())), (fs:GetFont()))
     IsTrue(near(select(2, fs:GetFont()), 15))
 end
 
@@ -156,7 +157,14 @@ function Tests:ASkinnedFrameKeepsElvUIsBorderWhenItsOwnerSetsItsBackdrop()
     ns.Skin.Backdrop(f, "Transparent", true)
     f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border" })
     f:SetBackdropBorderColor(1, 0, 0, 1)
-    AreEqual(E.media.blankTex, f:GetBackdrop().edgeFile)
+    ---@type {edgeFile: string?}?
+    local backdrop = f:GetBackdrop()
+    -- The transparent style leaves no backdrop at all, whatever the owner sets.
+    if ns.Skin.Transparent() then
+        IsFalse(backdrop)
+        return
+    end
+    AreEqual(E.media.blankTex, backdrop and backdrop.edgeFile)
     IsTrue(near((f:GetBackdropBorderColor()), E.media.bordercolor.r))
 end
 
