@@ -13,4 +13,7 @@
 - Waymark's As Told panel on ElvUI's backdrop, with its own switch and installer page.
 - The shadow switch works without a reload.
 - A transparent style: no backdrop, border or shadow anywhere, only the text.
-- Fonts: a SharedMedia font, outline and shadow for the text in the skinned windows.
+- Fonts: a SharedMedia font, outline and shadow for the text in the skinned windows; by default
+  ElvUI's own general font and style, followed when they change.
+- RestedXP's logo gives way to your class icon in an ElvUI frame, its cog in ElvUI's value colour.
+- RestedXP's scroll bar shows only while the pointer is over the guide window.

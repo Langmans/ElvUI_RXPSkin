@@ -1,6 +1,7 @@
--- The fonts. The text in the skinned windows gets the chosen SharedMedia font through ElvUI's
--- FontTemplate, which also brings ElvUI's outline and shadow styles and keeps the text in ElvUI's
--- own font updates. The size stays the addon's own.
+-- The fonts. The text in the skinned windows gets a SharedMedia font through ElvUI's FontTemplate,
+-- which also brings ElvUI's outline and shadow styles and keeps the text in ElvUI's own font
+-- updates. The size stays the addon's own. The font and style are ElvUI's general ones from the
+-- profile, followed when they change, or with that switch off the plugin's own choice.
 --
 -- Loreward, Navigator and Waymark use the game's font objects (GameFontNormal and the like), which
 -- the whole UI shares, so they cannot be changed themselves. Instead the font strings inside the
@@ -10,6 +11,7 @@
 -- on the ones taken. Text anywhere else is left alone.
 
 local _, ns = ... ---@type string, ElvUIRXPSkinNamespace
+local E = ElvUI[1]
 
 local Fonts = {}
 ns.Fonts = Fonts
@@ -20,11 +22,11 @@ local roots = setmetatable({}, { __mode = "k" }) ---@type table<table, boolean>
 -- Set while the plugin itself sets a font, so its own call is not taken for the addon's.
 local busy = false
 local hooked = false
--- The style for FontTemplate: "SHADOW" before the outline is ElvUI's way to ask for a shadow.
--- Built once and again in Fonts.Update, not on every SetFont.
-local fontStyle ---@type string?
+-- The font and the style for FontTemplate ("SHADOW" before the outline is ElvUI's way to ask for a
+-- shadow). Worked out once and again in Fonts.Update, not on every SetFont.
+local fontName, fontStyle ---@type string?, string?
 
----The style ElvUI's FontTemplate takes for the outline and shadow settings.
+---The style ElvUI's FontTemplate takes for the plugin's outline and shadow settings.
 ---@param db ElvUIRXPSkinSettings
 ---@return string
 function Fonts.Style(db)
@@ -32,13 +34,30 @@ function Fonts.Style(db)
     return "SHADOW" .. (db.fontStyle == "NONE" and "" or db.fontStyle)
 end
 
----Puts the chosen font on a font string, at the size it has.
+---The SharedMedia font and the FontTemplate style in use: ElvUI's general ones while the plugin
+---follows ElvUI, else its own.
+---@return string fontName
+---@return string style
+function Fonts.Current()
+    if not fontName then
+        local db = ns.db()
+        if db.fontFromElvUI then
+            fontName, fontStyle = E.db.general.font, E.db.general.fontStyle
+        else
+            fontName, fontStyle = db.font, Fonts.Style(db)
+        end
+    end
+    return fontName, --[[@as string]]
+        fontStyle --[[@as string]]
+end
+
+---Puts the font in use on a font string, at the size it has.
 ---@param fs FontString
 local function replace(fs)
     local _, size = fs:GetFont()
-    fontStyle = fontStyle or Fonts.Style(ns.db())
+    local name, style = Fonts.Current()
     busy = true
-    fs:FontTemplate(ns.db().font, size, fontStyle)
+    fs:FontTemplate(name, size, style)
     busy = false
 end
 
@@ -99,11 +118,12 @@ function Fonts.Watch(frame)
     Fonts.Sweep(frame)
 end
 
----After a setting changed: the text taken gets the new font or style, and with the fonts just
----switched on every window's text is taken. Switching them off takes effect after a reload.
+---After a setting or ElvUI's own font changed: the text taken gets the new font or style, and with
+---the fonts just switched on every window's text is taken. Switching them off takes effect after a
+---reload.
 function Fonts.Update()
     local db = ns.db()
-    fontStyle = Fonts.Style(db)
+    fontName, fontStyle = nil, nil
     if not db.fonts then return end
     for fs in pairs(taken) do
         replace(fs)

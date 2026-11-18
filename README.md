@@ -5,7 +5,9 @@ As Told panel ElvUI's look, for WoW: Forever.
 
 - **RestedXP Guides**: the guide window, its steps, step list, scroll bar and the Active Targets
   frame in ElvUI's style, and an "ElvUI" theme in RestedXP's own theme list, in ElvUI's colours and
-  font. Optionally without RestedXP's banners.
+  font. RestedXP's art in ElvUI's look: no banners, your class icon in an ElvUI frame in place of
+  its logo, the settings cog in ElvUI's value colour. The scroll bar shows only while the pointer is
+  over the guide window, as the Carrot tracker does it.
 - **Loreward**: its windows and cards in ElvUI's colours and borders instead of parchment, its
   buttons, check boxes, edit boxes and scroll bars in ElvUI's style.
 - **RestedXP Navigator**: its panels in ElvUI's colours, its close buttons and drop-downs in
@@ -13,9 +15,10 @@ As Told panel ElvUI's look, for WoW: Forever.
 - **Waymark**: its As Told panel on ElvUI's backdrop instead of its own dark glass.
 - **Shadows**: with Eltruism or WindTools loaded and that addon's own shadow option on, the skinned
   windows get its shadow.
-- **Fonts**: a SharedMedia font with ElvUI's outline and an optional shadow on the text in the
-  skinned windows, at the sizes the addons give it; RestedXP's ElvUI theme takes it too. By default
-  ElvUI's general font and style.
+- **Fonts**: on the text in the skinned windows, at the sizes the addons give it, ElvUI's general
+  font and style, followed when you change them in ElvUI; or a SharedMedia font, outline and
+  shadow of your own. RestedXP's ElvUI theme takes it too. ElvUI's Font Slug switch (sharper text)
+  applies, as the font goes through ElvUI's `FontTemplate`.
 - **Three styles**: ElvUI's own; translucent: see-through windows at an alpha of your choice, and
   no backdrop or border on the parts inside them (step numbers, list rows, title tabs, edit boxes);
   transparent: no backdrop, border or shadow anywhere, only the text, like Eltruism's transparent
@@ -41,7 +44,8 @@ if skin and not skin:IsInstalled() then
         restedxp = true, loreward = true, navigator = true, waymark = true,
         hideArt = true, shadow = true,
         style = "translucent", alpha = 0.5, -- or style = "elvui" / "transparent"
-        fonts = true, font = "Expressway", fontStyle = "OUTLINE", fontShadow = false,
+        scrollHover = true,
+        fonts = true, fontFromElvUI = false, font = "Expressway", fontStyle = "OUTLINE", fontShadow = false,
         rxpTheme = true, -- put RestedXP Guides on the ElvUI theme
     })
 end
@@ -73,6 +77,13 @@ value out of range; calling it counts as the installer having run. `ShowInstalle
   stays the addon's. Text anywhere else is left alone. Switching the fonts off takes a reload.
 - **Scroll bar**: RestedXP's `RXPFrame.UpdateScrollBar` only puts its theme's art on the step
   list's bar, on every render; after ElvUI's `HandleScrollBar` it is replaced by an empty function.
+  On hover: a frame inside the guide window looks ten times a second (its OnUpdate runs only while
+  the window shows) whether the pointer is over it, and fades the bar in (0.15 s) or out (0.4 s)
+  with ElvUI's `UIFrameFadeIn`/`UIFrameFadeOut`, the timings of Carrot's own.
+- **Art**: RestedXP sets its banners, logo and cog texture again on each render; after its
+  `UpdateVisuals` the plugin hides the banners and logo, shows the class icon (the game's
+  `Icons-Classes` sheet at the player's `CLASS_ICON_TCOORDS`, its rim cropped) in an ElvUI frame,
+  and tints the cog's normal texture.
 - **Guide window shadow**: `RXPFrame` is 3 pixels wider than the list and footer it shows, so the
   shadow goes round a frame spanning just those two.
 - **Waymark** (`Waymark.lua`): the As Told panel draws its glass as textures on the panel itself,

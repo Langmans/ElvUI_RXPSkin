@@ -55,6 +55,18 @@ function Tests:ElvUISkinsHasTheHandlersUsed()
     IsTrue(isFunction(S.AddCallbackForAddon))
 end
 
+function Tests:TheClassIconSheetKnowsThePlayersClass()
+    local _, class = UnitClass("player")
+    ---@type number[]?
+    local cell = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+    Exists(cell)
+    IsTrue(cell ~= nil and #cell == 4)
+end
+
+function Tests:ElvUIHasItsFades()
+    IsTrue(isFunction(E.UIFrameFadeIn) and isFunction(E.UIFrameFadeOut))
+end
+
 function Tests:ElvUIPluginInstallerHasItsFrame()
     local PI = E:GetModule("PluginInstaller") ---@type ElvUIPluginInstaller
     IsTrue(isFunction(PI.Queue))
@@ -151,6 +163,9 @@ function Tests:RestedXPHasWhatTheSkinUses()
     Exists(frame.CurrentStepFrame.framePool and frame.ScrollChild.framePool)
     IsTrue(isFunction(frame.UpdateVisuals) and isFunction(frame.UpdateScrollBar))
     Exists(frame.ScrollFrame.ScrollBar)
+    -- The art the plugin swaps: the logo and its class icon, and the cog button's texture.
+    Exists(frame.GuideName.icon and frame.GuideName.classIcon)
+    Exists(frame.Footer.cog:GetNormalTexture())
     -- The Active Targets frame, once RestedXP built it, has its title tab.
     ---@type table?
     local targets = _G.RXPTargetFrame

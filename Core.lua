@@ -10,7 +10,7 @@ local E, V, P = ElvUI[1], ElvUI[3], ElvUI[4]
 ns.NAME = NAME
 ns.addons = {}
 -- The switches other plugins may set through the API, with the option page's order.
-ns.SWITCHES = { "restedxp", "loreward", "navigator", "waymark", "hideArt", "shadow", "fonts" }
+ns.SWITCHES = { "restedxp", "loreward", "navigator", "waymark", "hideArt", "scrollHover", "shadow", "fonts" }
 
 -- ElvUI's general font style, split as the options show it: an outline and a shadow switch.
 local shadow = P.general.fontStyle:sub(1, 6) == "SHADOW"
@@ -22,10 +22,14 @@ P[NAME] = {
     navigator = true,
     waymark = true,
     hideArt = true,
+    scrollHover = true,
     shadow = true,
     style = "elvui",
     alpha = 0.5,
     fonts = true,
+    -- ElvUI's general font and style from the profile, followed when they change; the three below
+    -- are the plugin's own choice for when it does not follow.
+    fontFromElvUI = true,
     font = P.general.font,
     fontStyle = outline ~= "" and outline or "NONE",
     fontShadow = shadow,
@@ -111,7 +115,7 @@ _G[NAME] = API
 
 ---Sets the plugin up as its installer would, and counts as the installer having run.
 ---`settings` holds booleans by the option keys (restedxp, loreward, navigator, waymark, hideArt,
----shadow, fonts, fontShadow), `style` ("elvui", "translucent" or "transparent"), `alpha` (0 to 1,
+---shadow, fonts, fontFromElvUI, fontShadow), `style` ("elvui", "translucent" or "transparent"), `alpha` (0 to 1,
 ---the translucent backdrop's), `font` (a SharedMedia font name) and `fontStyle` (an outline from
 ---ElvUI's font styles, not a "SHADOW..." one); anything else, or a value out of range, is ignored.
 ---`rxpTheme = true` also puts RestedXP Guides on the ElvUI theme.
@@ -122,7 +126,9 @@ function API:Configure(settings)
     for _, key in ipairs(ns.SWITCHES) do
         if type(settings[key]) == "boolean" then db[key] = settings[key] end
     end
-    if type(settings.fontShadow) == "boolean" then db.fontShadow = settings.fontShadow end
+    for _, key in ipairs({ "fontShadow", "fontFromElvUI" }) do
+        if type(settings[key]) == "boolean" then db[key] = settings[key] end
+    end
     if ns.Skin.styles[settings.style] then db.style = settings.style end
     local alpha = type(settings.alpha) == "number" and tonumber(settings.alpha) or nil
     if alpha and alpha >= 0 and alpha <= 1 then db.alpha = alpha end

@@ -32,7 +32,7 @@ ElvUI = nil
 ---@class ElvUIEngine
 ---@field media ElvUIMedia
 ---@field mult number one screen pixel in UI units
----@field db table<string, any> the profile; the plugin's settings under its folder name
+---@field db table<string, any>|{general: {font: string, fontStyle: string}} the profile; the plugin's settings under its folder name
 ---@field public private table<string, any> the private settings; install_complete once ElvUI's installer ran
 ---@field Libs {ACH: LibAceConfigHelper, LSM: LibSharedMedia}
 ---@field Options {args: table<string, table>}
@@ -42,6 +42,8 @@ ElvUI = nil
 ---@field UpdateMedia fun(self: ElvUIEngine, mediaType: string?)
 ---@field Delay fun(self: ElvUIEngine, delay: number, fn: function, ...: any)
 ---@field StaticPopup_Show fun(self: ElvUIEngine, which: string)
+---@field UIFrameFadeIn fun(self: ElvUIEngine, frame: table, time: number, from: number, to: number)
+---@field UIFrameFadeOut fun(self: ElvUIEngine, frame: table, time: number, from: number, to: number)
 
 ---The plugin's module: an ElvUI module with AceHook mixed in.
 ---@class ElvUIRXPSkinModule
@@ -75,11 +77,13 @@ ElvUI = nil
 ---@field loreward boolean skin Loreward's windows
 ---@field navigator boolean skin RestedXP Navigator's windows
 ---@field waymark boolean skin Waymark's As Told panel
----@field hideArt boolean hide RestedXP's banners
+---@field hideArt boolean ElvUI's look for RestedXP's art: no banners, the class icon, a tinted cog
+---@field scrollHover boolean RestedXP's scroll bar only while the pointer is over the guide window
 ---@field shadow boolean Eltruism's or WindTools' shadow round the skinned windows
 ---@field style string one of Skin.styles: "elvui", "translucent" or "transparent"
 ---@field alpha number the translucent style's backdrop alpha, 0 to 1
 ---@field fonts boolean the chosen font on the skinned windows' text
+---@field fontFromElvUI boolean ElvUI's general font and style instead of the three below
 ---@field font string SharedMedia name of that font
 ---@field fontStyle string an outline from ElvUI's font styles, not a "SHADOW..." one
 ---@field fontShadow boolean a drop shadow behind the text
@@ -120,8 +124,8 @@ ElvUI = nil
 ---RestedXP's v1 guide window (GuideWindow.lua).
 ---@class RXPGuidesFrame : Frame
 ---@field BottomFrame Frame
----@field GuideName Frame|{bg: Texture}
----@field Footer Frame|{bg: Texture}
+---@field GuideName Frame|{bg: Texture, icon: Texture, classIcon: Texture} its banner, logo and class icon
+---@field Footer Frame|{bg: Texture, cog: Button} its banner and the settings cog
 ---@field CurrentStepFrame {framePool: RXPGuidesStepFrame[]}
 ---@field ScrollChild {framePool: Frame[]}
 ---@field ScrollFrame {ScrollBar: Slider} the step list's UIPanelScrollFrameTemplate
@@ -194,6 +198,7 @@ WindTools = nil
 ---Fonts.lua.
 ---@class ElvUIRXPSkinFonts
 ---@field Style fun(db: ElvUIRXPSkinSettings): string the style FontTemplate takes
+---@field Current fun(): string, string the font name and style in use
 ---@field Sweep fun(frame: table)
 ---@field Watch fun(frame: table)
 ---@field Update fun()
@@ -201,6 +206,10 @@ WindTools = nil
 ---SharedMedia, as ElvUI keeps it in E.Libs.
 ---@class LibSharedMedia
 ---@field Fetch fun(self: LibSharedMedia, mediaType: string, name: string): string
+
+---ElvUI's Toolkit adds this to textures: anchored inside its parent by ElvUI's border.
+---@class Texture
+---@field SetInside fun(self: Texture, anchor: table?, x: number?, y: number?)
 
 ---ElvUI adds this to every font string: a SharedMedia font name, a size, and a style where
 ---"SHADOW..." is a shadow.

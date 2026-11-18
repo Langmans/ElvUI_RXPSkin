@@ -16,8 +16,12 @@ L.navigator_TITLE = "RestedXP Navigator"
 L.navigator_DESC = "Navigator's windows in ElvUI's colours, its close buttons and drop-downs in ElvUI's style."
 L.waymark_TITLE = "Waymark"
 L.waymark_DESC = "Waymark's As Told panel on ElvUI's backdrop instead of its dark glass."
-L.hideArt_TITLE = "Hide RestedXP's banners"
-L.hideArt_DESC = "No RestedXP banner behind the guide name and the footer."
+L.hideArt_TITLE = "ElvUI look for RestedXP's art"
+L.hideArt_DESC =
+    "No banners behind the guide name and the footer, your class icon in an ElvUI frame in place of RestedXP's logo, and the settings cog in ElvUI's value colour."
+L.scrollHover_TITLE = "Scroll bar only on hover"
+L.scrollHover_DESC =
+    "RestedXP's step list scroll bar fades in while the pointer is over the guide window, and out after."
 L.shadow_TITLE = "Shadows"
 L.shadow_DESC =
     "Eltruism's or WindTools' shadow round the skinned windows, when that addon's own shadow option is on. Greyed out without either."
@@ -34,6 +38,9 @@ L.ALPHA_DESC = "How solid the windows' backdrop is in the translucent style."
 L.fonts_TITLE = "Fonts"
 L.fonts_DESC =
     "The font below on the text in the skinned windows, at the sizes the addons give it. RestedXP's ElvUI theme takes it too."
+L.FONT_FROM_ELVUI = "Use ElvUI's font"
+L.FONT_FROM_ELVUI_DESC =
+    "ElvUI's general font and font style (/ec > General > Fonts), followed when you change them there. Off: the font, outline and shadow below."
 L.FONT = "Font"
 L.FONT_STYLE = "Outline"
 L.FONT_SHADOW = "Shadow"

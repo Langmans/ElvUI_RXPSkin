@@ -20,6 +20,8 @@
 ---@field windtools boolean? ElvUI_WindTools is loaded, with its skins on (true) or off
 ---@field windtoolsShadow boolean? WindTools' own shadow option, default on
 ---@field waymark boolean? default true: Waymark is loaded
+---@field elvuiFont string? ElvUI's general font in the profile (E.db.general.font)
+---@field elvuiFontStyle string? and its style (E.db.general.fontStyle)
 
 ---@param t table
 ---@return table
@@ -64,6 +66,11 @@ function NewClient(opts)
     function CopyTable(t)
         return copy(t)
     end
+    -- The player is a warrior; the class icon sheet's cells as the client has them.
+    function UnitClass()
+        return "Warrior", "WARRIOR", 1
+    end
+    CLASS_ICON_TCOORDS = { WARRIOR = { 0, 0.25, 0, 0.25 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
     ReloadUI = function()
         client.reloaded = true
     end
@@ -177,6 +184,18 @@ function NewClient(opts)
         function r:SetColorTexture(red, g, b, a)
             self.color = { red, g, b, a }
         end
+        function r:SetVertexColor(red, g, b, a)
+            self.color = { red, g, b, a or 1 }
+        end
+        function r:SetDesaturated(desaturated)
+            self.desaturated = desaturated
+        end
+        function r:SetTexCoord(...)
+            self.coords = { ... }
+        end
+        function r:SetInside()
+            self.inside = true
+        end
         return r
     end
 
@@ -197,6 +216,23 @@ function NewClient(opts)
         end
         function f:GetFrameLevel()
             return self.level
+        end
+        function f:SetSize(w, h)
+            self.width, self.height = w, h
+        end
+        f.alpha = 1
+        function f:SetAlpha(alpha)
+            self.alpha = alpha
+        end
+        function f:GetAlpha()
+            return self.alpha
+        end
+        ---Whether the pointer is over the frame: set by a test as mouseOver.
+        function f:IsMouseOver()
+            return self.mouseOver == true
+        end
+        function f:SetShown(shown)
+            self.shown = not not shown
         end
         function f:SetFrameLevel(level)
             self.level = level
@@ -486,6 +522,16 @@ function NewClient(opts)
     function E:StaticPopup_Show(which)
         client.popups[#client.popups + 1] = which
     end
+    -- ElvUI's fades (Animation.lua): recorded, and the frame at its end alpha at once.
+    client.fades = {}
+    function E:UIFrameFadeIn(frame, time, from, to)
+        client.fades[#client.fades + 1] = { "in", time, from, to }
+        frame:SetAlpha(to)
+    end
+    function E:UIFrameFadeOut(frame, time, from, to)
+        client.fades[#client.fades + 1] = { "out", time, from, to }
+        frame:SetAlpha(to)
+    end
     ---Where ElvUI reads its media again (after a colour or font option, a new profile).
     function E:UpdateMedia(_) end
 
@@ -573,6 +619,9 @@ function NewClient(opts)
     for k, v in pairs(opts.db or {}) do
         E.db[name][k] = v
     end
+    -- The user's own general font and style in ElvUI's profile, over its defaults.
+    E.db.general.font = opts.elvuiFont or E.db.general.font
+    E.db.general.fontStyle = opts.elvuiFontStyle or E.db.general.fontStyle
     -- WindTools: its private skin settings, and its Skins module's CreateShadow (which checks
     -- its own shadow switch).
     _G.WindTools = nil
@@ -750,6 +799,19 @@ function LoadRXPForClient(client, opts)
     RXPFrame.Footer = Frame("Frame", "RXPFrameFooter", RXPFrame, "BackdropTemplate")
     RXPFrame.GuideName.bg = RXPFrame.GuideName:CreateTexture()
     RXPFrame.Footer.bg = RXPFrame.Footer:CreateTexture()
+    -- The logo on the guide name with the theme's class icon over it, and the settings cog button.
+    RXPFrame.GuideName.icon = RXPFrame.GuideName:CreateTexture()
+    RXPFrame.GuideName.classIcon = RXPFrame.GuideName:CreateTexture()
+    local cog = Frame("Button", "RXPFrameCogwheel", RXPFrame)
+    local cogTexture = cog:CreateTexture()
+    function cog:SetNormalTexture(file)
+        cogTexture:SetTexture(file)
+        cogTexture.desaturated, cogTexture.color = nil, { 1, 1, 1, 1 }
+    end
+    function cog:GetNormalTexture()
+        return cogTexture
+    end
+    RXPFrame.Footer.cog = cog
     RXPFrame.CurrentStepFrame = Frame("Frame", nil, RXPFrame)
     RXPFrame.CurrentStepFrame.framePool = {}
     RXPFrame.ScrollChild = Frame("Frame", "RXPFrame_steps", RXPFrame.BottomFrame)
@@ -774,6 +836,9 @@ function LoadRXPForClient(client, opts)
         end
         self.GuideName.bg:SetTexture(rxp.activeTheme.texturePath .. "rxp-banner")
         self.Footer.bg:SetTexture(rxp.activeTheme.texturePath .. "rxp-banner")
+        self.GuideName.icon:SetTexture(rxp.activeTheme.texturePath .. "rxp_logo-64")
+        self.GuideName.classIcon:SetTexture(rxp.activeTheme.texturePath .. "WARRIOR")
+        self.Footer.cog:SetNormalTexture(rxp.activeTheme.texturePath .. "rxp_cog-32")
         RXPFrame.UpdateScrollBar()
     end
     ---Targeting.lua's CreateTargetFrame: the Active Targets frame and its title tab, built on first

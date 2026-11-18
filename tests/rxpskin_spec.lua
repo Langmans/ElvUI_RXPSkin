@@ -42,11 +42,13 @@ describe("the plugin", function()
             navigator = true,
             waymark = true,
             hideArt = true,
+            scrollHover = true,
             shadow = true,
             style = "elvui",
             alpha = 0.5,
             -- ElvUI's general font and its style (OUTLINE here), without a shadow.
             fonts = true,
+            fontFromElvUI = true,
             font = "PT Sans Narrow",
             fontStyle = "OUTLINE",
             fontShadow = false,
@@ -182,7 +184,7 @@ describe("the options page", function()
     it("is a page in ElvUI's options with a switch per addon", function()
         local page = NewClient():LoadOptions()
         assert.equals("group", page.type)
-        for _, key in ipairs({ "restedxp", "loreward", "navigator", "waymark", "hideArt", "shadow" }) do
+        for _, key in ipairs({ "restedxp", "loreward", "navigator", "waymark", "hideArt", "scrollHover", "shadow" }) do
             assert.equals("toggle", page.args[key].type)
             assert.is_true(page.get({ key }))
         end
@@ -305,6 +307,39 @@ describe("RestedXP Guides", function()
         assert.equals(themed, bar.themed)
     end)
 
+    it("shows the step list's scroll bar only while the pointer is over the guide window", function()
+        local client = NewClient()
+        local frame = client.rxp.RXPFrame
+        local bar = frame.ScrollFrame.ScrollBar
+        local driver = client.ns.RestedXP.scrollDriver
+        assert.equals(0, bar:GetAlpha())
+        assert.equals(frame, driver.parent)
+        frame.mouseOver = true
+        driver.scripts.OnUpdate(driver, 0.2)
+        assert.same({ "in", 0.15, 0, 1 }, client.fades[#client.fades])
+        local fades = #client.fades
+        driver.scripts.OnUpdate(driver, 0.2)
+        assert.equals(fades, #client.fades)
+        frame.mouseOver = false
+        driver.scripts.OnUpdate(driver, 0.05)
+        assert.equals(fades, #client.fades) -- a tenth of a second between looks
+        driver.scripts.OnUpdate(driver, 0.06)
+        assert.same({ "out", 0.4, 1, 0 }, client.fades[#client.fades])
+    end)
+
+    it("keeps the scroll bar in sight with its switch off, at once", function()
+        local client = NewClient()
+        local bar = client.rxp.RXPFrame.ScrollFrame.ScrollBar
+        local driver = client.ns.RestedXP.scrollDriver
+        client:Set("scrollHover", false)
+        assert.equals(1, bar:GetAlpha())
+        assert.is_false(driver:IsShown())
+        assert.same({}, client.popups)
+        client:Set("scrollHover", true)
+        assert.equals(0, bar:GetAlpha())
+        assert.is_true(driver:IsShown())
+    end)
+
     it("skins the Active Targets frame and its title once RestedXP builds them", function()
         local client = NewClient({ eltruism = true })
         local f = client:RXPTargetFrame()
@@ -328,6 +363,62 @@ describe("RestedXP Guides", function()
         assert.is_true(frame.GuideName.bg:IsShown())
         client:Set("hideArt", true)
         assert.is_false(frame.Footer.bg:IsShown())
+    end)
+
+    it("puts the player's class icon in an ElvUI frame where RestedXP's logo was", function()
+        local client = NewClient()
+        local guideName = client.rxp.RXPFrame.GuideName
+        assert.is_false(guideName.icon:IsShown())
+        assert.is_false(guideName.classIcon:IsShown())
+        local holder = client.ns.RestedXP.classIcon
+        assert.equals(guideName, holder.parent)
+        assert.same({ "CENTER", guideName, "LEFT", 16, 0 }, holder.points[1])
+        assert.equals("Default", holder.template)
+        assert.is_true(holder:IsShown())
+        local icon = holder.icon
+        assert.equals("Interface\\WorldStateFrame\\Icons-Classes", icon.file)
+        -- The warrior's cell, its round edge cropped.
+        assert.same({ 0.02, 0.23, 0.02, 0.23 }, icon.coords)
+        -- RestedXP sets its logo again on a render: it stays hidden.
+        client.rxp.RenderFrame()
+        guideName.icon:Show()
+        client.rxp.RenderFrame()
+        assert.is_false(guideName.icon:IsShown())
+    end)
+
+    it("tints the settings cog in ElvUI's value colour, white under the pointer", function()
+        local client = NewClient()
+        local cog = client.rxp.RXPFrame.Footer.cog
+        local texture = cog:GetNormalTexture()
+        local value = client.E.media.rgbvaluecolor
+        assert.is_true(texture.desaturated)
+        assert.same({ value.r, value.g, value.b, 1 }, texture.color)
+        client.rxp.RenderFrame()
+        assert.is_true(texture.desaturated)
+        assert.same({ value.r, value.g, value.b, 1 }, texture.color)
+        cog.scripts.OnEnter(cog)
+        assert.same({ 1, 1, 1, 1 }, texture.color)
+        cog.scripts.OnLeave(cog)
+        assert.same({ value.r, value.g, value.b, 1 }, texture.color)
+    end)
+
+    it("gives RestedXP's own logo and cog back with its art switch off, at once", function()
+        local client = NewClient()
+        local frame = client.rxp.RXPFrame
+        client:Set("hideArt", false)
+        assert.is_true(frame.GuideName.icon:IsShown())
+        assert.is_true(frame.GuideName.classIcon:IsShown())
+        assert.is_false(client.ns.RestedXP.classIcon:IsShown())
+        local texture = frame.Footer.cog:GetNormalTexture()
+        assert.is_false(texture.desaturated)
+        assert.same({ 1, 1, 1, 1 }, texture.color)
+        frame.Footer.cog.scripts.OnLeave(frame.Footer.cog)
+        assert.same({ 1, 1, 1, 1 }, texture.color)
+    end)
+
+    it("frames the class icon as a part inside the window: no backdrop in the see-through styles", function()
+        local client = NewClient({ db = { style = "transparent" } })
+        assert.equals("NoBackdrop", client.ns.RestedXP.classIcon.template)
     end)
 
     it("leaves RestedXP untouched with its switch off", function()
@@ -611,8 +702,27 @@ describe("the fonts", function()
         assert.is_table(template(client, targets.label))
     end)
 
+    it("follow ElvUI's own font and style by default, also when they change in ElvUI", function()
+        local client = NewClient({ rxpTheme = "ElvUI", elvuiFont = "Expressway", elvuiFontStyle = "SHADOWOUTLINE" })
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        assert.same(
+            { fontName = "Expressway", fontSize = 12, fontStyle = "SHADOWOUTLINE" },
+            template(client, box.title)
+        )
+        assert.equals(SM .. "Expressway.ttf", client.rxp.themes.ElvUI.font)
+        client.E.db.general.font, client.E.db.general.fontStyle = "Roboto", "NONE"
+        client.E:UpdateMedia()
+        assert.same({ fontName = "Roboto", fontSize = 12, fontStyle = "NONE" }, template(client, box.title))
+        assert.equals(SM .. "Roboto.ttf", client.rxp.themes.ElvUI.font)
+        -- The plugin's own choice once it no longer follows ElvUI, at once.
+        client:Set("fontFromElvUI", false)
+        assert.same({ fontName = "PT Sans Narrow", fontSize = 12, fontStyle = "OUTLINE" }, template(client, box.title))
+        assert.same({}, client.popups)
+    end)
+
     it("follow a change of font, outline or shadow at once", function()
-        local client = NewClient({ rxpTheme = "ElvUI" })
+        local client = NewClient({ rxpTheme = "ElvUI", db = { fontFromElvUI = false } })
         local box = client:LorewardWindow("LorewardFindWindow")
         client:Tick()
         client:Set("font", "Expressway")
@@ -652,22 +762,36 @@ describe("the fonts", function()
             assert.is_nil(args.fontStyle.values.SHADOWOUTLINE)
             assert.equals("Outline", args.fontStyle.values.OUTLINE)
             assert.equals("toggle", args.fontShadow.type)
+            assert.equals("toggle", args.fontFromElvUI.type)
+            -- Greyed out while they follow ElvUI's font, the default.
+            for _, key in ipairs({ "font", "fontStyle", "fontShadow" }) do
+                assert.is_true(args[key].disabled())
+            end
+            client:Set("fontFromElvUI", false)
             for _, key in ipairs({ "font", "fontStyle", "fontShadow" }) do
                 assert.is_false(args[key].disabled())
             end
             client:Set("fonts", false)
             assert.is_true(args.font.disabled())
+            assert.is_true(args.fontFromElvUI.disabled())
         end
     )
 
     it("can be set through the API, a wrong value ignored", function()
         local client = NewClient()
         local api = _G.ElvUI_RXPSkin
-        api:Configure({ fonts = false, font = "Expressway", fontStyle = "NONE", fontShadow = true })
+        api:Configure({
+            fonts = false,
+            fontFromElvUI = false,
+            font = "Expressway",
+            fontStyle = "NONE",
+            fontShadow = true,
+        })
         local db = client:Db()
-        assert.same({ false, "Expressway", "NONE", true }, { db.fonts, db.font, db.fontStyle, db.fontShadow })
-        api:Configure({ font = 3, fontStyle = "SHADOW", fontShadow = "yes" })
-        assert.same({ "Expressway", "NONE", true }, { db.font, db.fontStyle, db.fontShadow })
+        local got = { db.fonts, db.fontFromElvUI, db.font, db.fontStyle, db.fontShadow }
+        assert.same({ false, false, "Expressway", "NONE", true }, got)
+        api:Configure({ font = 3, fontStyle = "SHADOW", fontShadow = "yes", fontFromElvUI = 1 })
+        assert.same({ false, "Expressway", "NONE", true }, { db.fontFromElvUI, db.font, db.fontStyle, db.fontShadow })
     end)
 end)
 

@@ -14,7 +14,7 @@ local function get(info)
 end
 
 -- The switches that take effect both ways at once; switching off any other skin needs a reload.
-local live = { hideArt = true, shadow = true, fontShadow = true }
+local live = { hideArt = true, scrollHover = true, shadow = true, fontShadow = true, fontFromElvUI = true }
 
 ---@param info string[]
 ---@param value boolean|string|number
@@ -48,6 +48,12 @@ local function fontsOff()
     return not ns.db().fonts
 end
 
+---The plugin's own font choice counts only while it does not follow ElvUI's font.
+---@return boolean
+local function ownFontOff()
+    return not ns.db().fonts or ns.db().fontFromElvUI
+end
+
 ---LibElvUIPlugin calls this once ElvUI's options are loaded.
 function ns.InsertOptions()
     local ACH = E.Libs.ACH
@@ -58,6 +64,7 @@ function ns.InsertOptions()
         args[key] = ACH:Toggle(L[key .. "_TITLE"], L[key .. "_DESC"], order, nil, nil, "full")
     end
     args.hideArt.disabled = rxpOff
+    args.scrollHover.disabled = rxpOff
     args.shadow.disabled = noShadow
     local styles = {
         [ns.Skin.styles.elvui] = L.STYLE_ELVUI,
@@ -69,10 +76,11 @@ function ns.InsertOptions()
     args.alpha = ACH:Range(L.ALPHA, L.ALPHA_DESC, 11, range, nil, nil, nil, notTranslucent)
     -- The fonts, below the styles.
     args.fonts.order = 20
-    args.font = ACH:SharedMediaFont(L.FONT, nil, 21, nil, nil, nil, fontsOff)
-    args.fontStyle = ACH:FontFlags(L.FONT_STYLE, nil, 22, nil, nil, nil, fontsOff)
+    args.fontFromElvUI = ACH:Toggle(L.FONT_FROM_ELVUI, L.FONT_FROM_ELVUI_DESC, 21, nil, nil, "full", nil, nil, fontsOff)
+    args.font = ACH:SharedMediaFont(L.FONT, nil, 22, nil, nil, nil, ownFontOff)
+    args.fontStyle = ACH:FontFlags(L.FONT_STYLE, nil, 23, nil, nil, nil, ownFontOff)
     args.fontStyle.values = ns.outlines()
-    args.fontShadow = ACH:Toggle(L.FONT_SHADOW, L.FONT_SHADOW_DESC, 23, nil, nil, nil, nil, nil, fontsOff)
+    args.fontShadow = ACH:Toggle(L.FONT_SHADOW, L.FONT_SHADOW_DESC, 24, nil, nil, nil, nil, nil, ownFontOff)
     args.install = ACH:Execute(L.INSTALL_AGAIN, nil, 30, function()
         ns.Install.Queue(true)
     end)

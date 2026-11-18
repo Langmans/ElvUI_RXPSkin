@@ -5,7 +5,9 @@
 -- profile is harmless when this plugin is off.
 -- The v1 window's frames and the Active Targets frame set RestedXP's own border texture on every
 -- redraw; Skin.Backdrop puts ElvUI's template back and keeps RestedXP's colour, which marks the
--- step states. The step list's scroll bar is ElvUI's.
+-- step states. The step list's scroll bar is ElvUI's, by default shown only while the pointer is
+-- over the guide window. With the art switch on, RestedXP's banners
+-- and logo give way to the player's class icon in an ElvUI frame, and its cog is tinted.
 
 local _, ns = ... ---@type string, ElvUIRXPSkinNamespace
 local E = ElvUI[1]
@@ -13,6 +15,8 @@ local Skin = ns.Skin
 
 ---@class ElvUIRXPSkinRestedXP: ElvUIRXPSkinAddon
 ---@field shadowFrame? Frame the frame the guide window's shadow goes round
+---@field classIcon? table the player's class icon in an ElvUI frame, in place of RestedXP's logo
+---@field scrollDriver? table the frame whose OnUpdate fades the scroll bar in and out on hover
 local R = { ADDON = "RXPGuides", key = "restedxp", THEME = "ElvUI" }
 ns.RestedXP = R
 -- RestedXP's frames built on first use (Targeting.lua).
@@ -53,7 +57,7 @@ local function color()
     fill(theme.mapPins, m.rgbvaluecolor)
     theme.tooltip = m.hexvaluecolor
     local db = ns.db()
-    theme.font = db.fonts and E.Libs.LSM:Fetch("font", db.font) or m.normFont
+    theme.font = db.fonts and E.Libs.LSM:Fetch("font", (ns.Fonts.Current())) or m.normFont
     theme.bgTextures.edge, theme.bgTextures.bottom = m.blankTex, m.blankTex
 end
 
@@ -75,11 +79,64 @@ local function active()
     return rxp.settings.profile.activeTheme == R.THEME
 end
 
----Shows or hides the banners behind the guide name and the footer.
-local function banners()
-    local shown = not ns.db().hideArt
-    rxp.RXPFrame.GuideName.bg:SetShown(shown)
-    rxp.RXPFrame.Footer.bg:SetShown(shown)
+-- The game's sheet of class icons; each cell has a round rim, cropped by this much on every side.
+local CLASS_ICONS = "Interface\\WorldStateFrame\\Icons-Classes"
+local CROP = 0.02
+
+---The player's class icon in an ElvUI frame, where RestedXP's logo sits on the guide name.
+---@param guideName table
+---@return table
+local function makeClassIcon(guideName)
+    local holder = CreateFrame("Frame", nil, guideName)
+    holder:SetSize(30, 30)
+    holder:SetPoint("CENTER", guideName, "LEFT", 16, 0)
+    local icon = holder:CreateTexture(nil, "ARTWORK")
+    icon:SetInside()
+    icon:SetTexture(CLASS_ICONS)
+    local _, class = UnitClass("player")
+    -- The class's cell on the sheet: left, right, top, bottom.
+    ---@type number[]
+    local cell = CLASS_ICON_TCOORDS[class]
+    icon:SetTexCoord(cell[1] + CROP, cell[2] - CROP, cell[3] + CROP, cell[4] - CROP)
+    holder.icon = icon
+    Skin.Backdrop(holder, "Default", true, true)
+    return holder
+end
+
+---The settings cog: with the art switch on, grey and in ElvUI's value colour, white under the
+---pointer; off, as RestedXP draws it.
+---@param cog table
+---@param hover boolean?
+local function tintCog(cog, hover)
+    local texture = cog:GetNormalTexture() ---@type table?
+    if not texture then return end
+    local on = ns.db().hideArt
+    texture:SetDesaturated(on)
+    local c = on and not hover and E.media.rgbvaluecolor or nil
+    if c then
+        texture:SetVertexColor(c.r, c.g, c.b, 1)
+    else
+        texture:SetVertexColor(1, 1, 1, 1)
+    end
+end
+
+---@param cog table
+local function cogEnter(cog)
+    tintCog(cog, true)
+end
+
+---RestedXP's art or ElvUI's in its place: the banners behind the guide name and the footer, the
+---logo with its class icon, and the cog. RestedXP sets them again on each render.
+local function art()
+    local on = ns.db().hideArt
+    local frame = rxp.RXPFrame
+    frame.GuideName.bg:SetShown(not on)
+    frame.Footer.bg:SetShown(not on)
+    frame.GuideName.icon:SetShown(not on)
+    frame.GuideName.classIcon:SetShown(not on)
+    local holder = R.classIcon
+    if holder then holder:SetShown(on) end
+    tintCog(frame.Footer.cog)
 end
 
 ---The active steps, built and pooled by SetStep, each with a number box.
@@ -105,6 +162,39 @@ end
 local function skinScrollBar()
     S:HandleScrollBar(rxp.RXPFrame.ScrollFrame.ScrollBar)
     rxp.RXPFrame.UpdateScrollBar = function() end
+end
+
+-- The scroll bar on hover, as the Carrot tracker has its own: how often the pointer is looked
+-- for, and how long the bar takes to fade in and out.
+local HOVER_EVERY, FADE_IN, FADE_OUT = 0.1, 0.15, 0.4
+local since, over = 0, false
+
+---Looks a few times a second (only while the guide window shows) whether the pointer is over
+---it, and fades the scroll bar in or out when that changed.
+---@param _ table the driver
+---@param elapsed number
+local function hoverScroll(_, elapsed)
+    since = since + elapsed
+    if since < HOVER_EVERY then return end
+    since = 0
+    local now = rxp.RXPFrame:IsMouseOver()
+    if now == over then return end
+    over = now
+    local bar = rxp.RXPFrame.ScrollFrame.ScrollBar
+    if now then
+        E:UIFrameFadeIn(bar, FADE_IN, bar:GetAlpha(), 1)
+    else
+        E:UIFrameFadeOut(bar, FADE_OUT, bar:GetAlpha(), 0)
+    end
+end
+
+---The scroll bar hidden until the pointer is over the guide window, or always in sight.
+local function scrollMode()
+    local on = ns.db().scrollHover
+    local driver = R.scrollDriver
+    if driver then driver:SetShown(on) end
+    over = false
+    rxp.RXPFrame.ScrollFrame.ScrollBar:SetAlpha(on and 0 or 1)
 end
 
 ---The Active Targets frame and its title tab, built on first use; RestedXP sets both backdrops
@@ -135,15 +225,22 @@ function R:Load()
     holder:SetFrameLevel(math.max(frame.BottomFrame:GetFrameLevel() - 1, 0))
     R.shadowFrame = holder
     Skin.Shadow(holder)
-    hooksecurefunc(frame, "UpdateVisuals", banners)
+    R.classIcon = makeClassIcon(frame.GuideName)
+    frame.Footer.cog:HookScript("OnEnter", cogEnter)
+    frame.Footer.cog:HookScript("OnLeave", tintCog)
+    hooksecurefunc(frame, "UpdateVisuals", art)
     hooksecurefunc(rxp, "SetStep", skinSteps)
     hooksecurefunc(rxp, "LoadGuide", skinList)
     ns.Fonts.Watch(frame)
     skinSteps()
     skinList()
     skinScrollBar()
+    -- Its OnUpdate runs only while it is shown, inside the guide window.
+    R.scrollDriver = CreateFrame("Frame", nil, frame)
+    R.scrollDriver:SetScript("OnUpdate", hoverScroll)
+    scrollMode()
     Skin.Watch(R.TARGET_FRAMES, skinTargets)
-    banners()
+    art()
     -- RestedXP read its saved theme before this one existed.
     if active() then rxp.RenderFrame() end
 end
@@ -155,7 +252,8 @@ function R:Update()
         rxp.v2:ConvertThemes()
         fixV2()
     end
-    banners()
+    art()
+    scrollMode()
     if active() then rxp.RenderFrame() end
 end
 
