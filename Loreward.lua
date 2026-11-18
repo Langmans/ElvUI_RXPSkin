@@ -22,6 +22,15 @@ L.WINDOWS = {
 }
 -- stylua: ignore end
 
+-- The ones that stay on screen while playing: the HUD, which follows the see-through styles. The
+-- windows you open (Find, Plan and the like) keep ElvUI's own skin.
+L.HUD = {
+    LorewardProgressStrip = true,
+    LorewardStepNotes = true,
+    LorewardTourCard = true,
+    LorewardRecapCard = true,
+}
+
 -- The windows with a progress bar (the strip), for the colours after a change of ElvUI's media.
 local bars = {} ---@type table[]
 
@@ -41,14 +50,14 @@ local function skinBar(frame)
     bar:SetStatusBarTexture(E.media.normTex)
     E:RegisterStatusBar(bar)
     if bar.track then bar.track:Hide() end
-    Skin.Backdrop(bar, "Transparent", true, true)
+    Skin.Backdrop(bar, "Transparent", true, true, L.HUD[frame:GetName()])
     colorBar(frame)
     bars[#bars + 1] = frame
 end
 
 ---@param frame table
 local function skin(frame)
-    Skin.Window(frame, "Transparent")
+    Skin.Window(frame, "Transparent", L.HUD[frame:GetName()])
     if frame.bar and frame.bar:GetObjectType() == "StatusBar" then skinBar(frame) end
 end
 

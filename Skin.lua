@@ -2,8 +2,10 @@
 -- redraw, so a skinned frame keeps a hook on SetBackdrop that puts ElvUI's template back. In
 -- "keep" mode the owner's backdrop colour stays (RestedXP draws its states with it); in "force"
 -- mode ElvUI's colours win every time (Loreward's parchment). The border is always ElvUI's.
--- In the translucent style windows get a see-through backdrop at the plugin's alpha and parts
--- nested in a window ("inner") none at all; in the transparent style nothing has a backdrop or a
+-- The see-through styles apply to the HUD only, the frames that stay on screen while playing (the
+-- guide window, Loreward's strip and cards, Waymark's panel); windows you open keep ElvUI's own
+-- skin. In the translucent style the HUD gets a see-through backdrop at the plugin's alpha and
+-- parts nested in it ("inner") none at all; in the transparent style the HUD has no backdrop or
 -- shadow, only the text and the addons' own accents are left (as Eltruism's transparent chat).
 -- Widgets are found by what their Blizzard template leaves on them, and each is skinned once.
 
@@ -20,16 +22,19 @@ Skin.styles = { elvui = "elvui", translucent = "translucent", transparent = "tra
 local NONE = "NoBackdrop"
 
 -- Skinned frames, each with its template, whether ElvUI's colours are forced, whether it is nested
--- in a window, and the template it has now. Weak keys.
----@type table<table, { template: string, force: boolean, inner: boolean, current: string }>
+-- in a window, whether it is part of the HUD, and the template it has now. Weak keys.
+---@type table<table, { template: string, force: boolean, inner: boolean, hud: boolean, current: string }>
 local skinned = setmetatable({}, { __mode = "k" })
 -- Frames being skinned right now, whose own hooks must not run.
 local locked = setmetatable({}, { __mode = "k" })
 -- Widgets already handed to ElvUI's Skins.
 local handled = setmetatable({}, { __mode = "k" })
--- The windows that take a shadow, so the switch can show and hide it later. Weak keys.
+-- The windows that take a shadow, each with whether it is part of the HUD. Weak keys.
 ---@type table<table, boolean>
 local shadowed = setmetatable({}, { __mode = "k" })
+-- The windows whose widgets are skinned, each with whether it is part of the HUD. Weak keys.
+---@type table<table, boolean>
+local windows = setmetatable({}, { __mode = "k" })
 local updateShadow -- with the shadows, below
 
 ---The backdrop alpha of the current style: the plugin's alpha in the translucent style, 0 in the
@@ -75,8 +80,10 @@ end
 ---@param frame table
 local function apply(frame)
     local info = skinned[frame]
-    local alpha = Skin.Alpha()
-    info.current = (Skin.Transparent() or (alpha and info.inner)) and NONE or info.template
+    -- Outside the HUD, ElvUI's own style whatever the setting.
+    local alpha = info.hud and Skin.Alpha() or nil
+    local transparent = info.hud and Skin.Transparent()
+    info.current = (transparent or (alpha and info.inner)) and NONE or info.template
     -- ElvUI's SetTemplate takes this alpha over the template's.
     frame.customBackdropAlpha = not info.inner and alpha or nil
     locked[frame] = true
@@ -116,9 +123,16 @@ end
 ---@param template string "Default" or "Transparent"
 ---@param force boolean? ElvUI's background colour over the owner's
 ---@param inner boolean? nested in a window: no backdrop in the translucent style
-function Skin.Backdrop(frame, template, force, inner)
+---@param hud boolean? part of the HUD: follows the see-through styles; else always ElvUI's style
+function Skin.Backdrop(frame, template, force, inner, hud)
     if skinned[frame] then return end
-    skinned[frame] = { template = template, force = not not force, inner = not not inner, current = template }
+    skinned[frame] = {
+        template = template,
+        force = not not force,
+        inner = not not inner,
+        hud = not not hud,
+        current = template,
+    }
     apply(frame)
     hooksecurefunc(frame, "SetBackdrop", onSetBackdrop)
     hooksecurefunc(frame, "SetBackdropBorderColor", onBorderColor)
@@ -148,8 +162,9 @@ end
 local walk -- below widget
 
 ---Skins one widget by its template's marks, then the widgets inside it.
+---@param hud boolean the window it is in is part of the HUD
 ---@param frame table
-local function widget(frame)
+local function widget(hud, frame)
     if handled[frame] then return end
     local kind = frame:GetObjectType() ---@type string
     -- The Left, Middle and Right textures of a panel button or a drop-down menu.
@@ -165,25 +180,26 @@ local function widget(frame)
     elseif kind == "Frame" and panel and frame.Button then
         S:HandleDropDownBox(frame)
     elseif kind == "EditBox" and frame.SetBackdrop then
-        Skin.Backdrop(frame, "Default", true, true)
+        Skin.Backdrop(frame, "Default", true, true, hud)
     else
-        walk(frame:GetChildren())
+        walk(hud, frame:GetChildren())
         return
     end
     handled[frame] = true
 end
 
+---@param hud boolean
 ---@param ... table
-walk = function(...)
+walk = function(hud, ...)
     for i = 1, select("#", ...) do
-        widget((select(i, ...)))
+        widget(hud, (select(i, ...)))
     end
 end
 
----Skins the widgets inside a frame that are not yet.
+---Skins the widgets inside a window that are not yet.
 ---@param frame table
 function Skin.Widgets(frame)
-    walk(frame:GetChildren())
+    walk(windows[frame] == true, frame:GetChildren())
 end
 
 -- The shadow variants: the ElvUI edit whose shadows the skinned windows get.
@@ -215,11 +231,12 @@ end
 
 ---Shows a window's shadow, made the first time as the variant in use makes one (Eltruism's at its
 ---length and in its colour, WindTools' through its own CreateShadow); hides it with the plugin's
----switch off, no variant, or in the transparent style, which has no box to cast one. A shadow
----once made stays in its variant's look.
+---switch off, no variant, or on the HUD in the transparent style, which has no box to cast one.
+---A shadow once made stays in its variant's look.
 ---@param frame table
 updateShadow = function(frame)
-    local variant = ns.db().shadow and not Skin.Transparent() and Skin.ShadowVariant()
+    local hud = shadowed[frame]
+    local variant = ns.db().shadow and not (hud and Skin.Transparent()) and Skin.ShadowVariant()
     if not variant then
         if frame.shadow then frame.shadow:Hide() end
         return
@@ -240,17 +257,20 @@ end
 ---Gives a window a shadow, as the ElvUI edit in use puts one round the frames it skins, and keeps
 ---it following the plugin's shadow switch.
 ---@param frame table
-function Skin.Shadow(frame)
-    shadowed[frame] = true
+---@param hud boolean? part of the HUD: no shadow in the transparent style
+function Skin.Shadow(frame, hud)
+    shadowed[frame] = not not hud
     updateShadow(frame)
 end
 
 ---Skins a window and its widgets, and the widgets it gains later each time it is shown.
 ---@param frame table
 ---@param template string? with one, the window gets ElvUI's backdrop in its colours too
-function Skin.Window(frame, template)
-    if template then Skin.Backdrop(frame, template, true) end
-    Skin.Shadow(frame)
+---@param hud boolean? part of the HUD: it and its widgets follow the see-through styles
+function Skin.Window(frame, template, hud)
+    windows[frame] = not not hud
+    if template then Skin.Backdrop(frame, template, true, false, hud) end
+    Skin.Shadow(frame, hud)
     ns.Fonts.Watch(frame)
     Skin.Widgets(frame)
     frame:HookScript("OnShow", Skin.Widgets)

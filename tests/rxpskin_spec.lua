@@ -43,6 +43,8 @@ describe("the plugin", function()
             waymark = true,
             hideArt = true,
             scrollHover = true,
+            markSteps = true,
+            nameColors = true,
             shadow = true,
             style = "elvui",
             alpha = 0.5,
@@ -307,6 +309,61 @@ describe("RestedXP Guides", function()
         assert.equals(themed, bar.themed)
     end)
 
+    ---A guide of four steps at step 3: step 1 finished, step 2 passed, step 3 active.
+    ---@param client table
+    ---@return table[] rows
+    local function guideAtStep3(client)
+        local rxp = client.rxp
+        rxp:LoadGuide(4)
+        local steps = rxp.currentGuide.steps
+        steps[1].completed = true
+        steps[3].active = true
+        rxp.progress = 3
+        rxp.SetStep(1)
+        return rxp.RXPFrame.ScrollChild.framePool
+    end
+
+    it("marks the current step in the list and dims the finished ones", function()
+        local client = NewClient()
+        local rows = guideAtStep3(client)
+        local alphas = {}
+        for i, row in ipairs(rows) do
+            alphas[i] = row:GetAlpha()
+        end
+        assert.same({ 0.35, 0.35, 1, 0.8 }, alphas)
+        local value = client.E.media.rgbvaluecolor
+        local accent = client.ns.RestedXP.accentOf(rows[3])
+        assert.is_true(accent:IsShown())
+        assert.same({ value.r, value.g, value.b, 1 }, accent.color)
+        assert.is_false(client.ns.RestedXP.accentOf(rows[4]):IsShown())
+        assert.same({ value.r, value.g, value.b }, rows[3].number.text.color)
+        assert.same({ 1, 1, 1 }, rows[4].number.text.color)
+    end)
+
+    it("keeps the marks when RestedXP updates the list, a hidden step still hidden", function()
+        local client = NewClient()
+        local rows = guideAtStep3(client)
+        rows[4].hidden = true
+        client.rxp.RXPFrame.BottomFrame.UpdateFrame()
+        assert.same(
+            { 0.35, 0.35, 1, 0 },
+            { rows[1]:GetAlpha(), rows[2]:GetAlpha(), rows[3]:GetAlpha(), rows[4]:GetAlpha() }
+        )
+    end)
+
+    it("gives RestedXP's own look back with its switch off, at once", function()
+        local client = NewClient()
+        local rows = guideAtStep3(client)
+        client:Set("markSteps", false)
+        assert.same(
+            { 0.66, 0.66, 1, 0.66 },
+            { rows[1]:GetAlpha(), rows[2]:GetAlpha(), rows[3]:GetAlpha(), rows[4]:GetAlpha() }
+        )
+        assert.is_false(client.ns.RestedXP.accentOf(rows[3]):IsShown())
+        assert.same({ 1, 1, 1 }, rows[3].number.text.color)
+        assert.same({}, client.popups)
+    end)
+
     it("shows the step list's scroll bar only while the pointer is over the guide window", function()
         local client = NewClient()
         local frame = client.rxp.RXPFrame
@@ -441,6 +498,72 @@ describe("RestedXP Guides", function()
     end)
 end)
 
+describe("names in guide text", function()
+    local ENEMY, FRIENDLY, LOOT = "|cFFFF5722", "|cFF00FF25", "|cFF00BCD4"
+
+    ---A step as RestedXP parses it: its .mob, .target and .collect lines, and a text line.
+    ---@param text string
+    ---@param mobs string[]?
+    local function step(text, mobs)
+        local s = { elements = {} }
+        s.elements[1] = { mobs = mobs or { "Grimson the Pale" }, step = s }
+        s.elements[2] = { targets = { "Dalar Dawnweaver" }, step = s }
+        s.elements[3] = { itemName = "Head of Grimson", step = s }
+        s.elements[4] = { text = text, step = s }
+        return s, s.elements[4]
+    end
+
+    it("colours a step's mobs, NPCs and items in its text, in RestedXP's own colours", function()
+        local client = NewClient()
+        local _, line = step("Kill Grimson the Pale for the Head of Grimson. Back to Dalar Dawnweaver.")
+        client.rxp.settings.ReplaceColors(line)
+        local want = "Kill "
+            .. ENEMY
+            .. "Grimson the Pale|r for the "
+            .. LOOT
+            .. "Head of Grimson|r. Back to "
+            .. FRIENDLY
+            .. "Dalar Dawnweaver|r."
+        assert.equals(want, line.text)
+    end)
+
+    it("takes a plural along, and the longer of two names first", function()
+        local client = NewClient()
+        local _, line = step("Kill 8 Dalaran Watchers.", { "Dalaran", "Dalaran Watcher" })
+        client.rxp.settings.ReplaceColors(line)
+        assert.equals("Kill 8 " .. ENEMY .. "Dalaran Watchers|r.", line.text)
+    end)
+
+    it("colours the objective lines RestedXP builds as it updates, once", function()
+        local client = NewClient()
+        local s = step("", { "Dalaran Watcher" })
+        local objective = { text = "0/8 Dalaran Watcher slain", step = s }
+        local function update() end
+        client.rxp.Call("complete", update, objective, "WindowUpdate")
+        assert.equals("0/8 " .. ENEMY .. "Dalaran Watcher|r slain", objective.text)
+        client.rxp.Call("complete", update, objective, "WindowUpdate")
+        assert.equals("0/8 " .. ENEMY .. "Dalaran Watcher|r slain", objective.text)
+    end)
+
+    it("leaves a name the guide coloured itself, ids and other calls alone", function()
+        local client = NewClient()
+        local _, line = step("Kill |cRXP_ENEMY_Grimson the Pale|r.", { "Grimson the Pale", "4321" })
+        client.rxp.settings.ReplaceColors(line)
+        assert.equals("Kill " .. ENEMY .. "Grimson the Pale|r.", line.text)
+        assert.has_no.errors(function()
+            client.rxp.Call("other", function() end, "not an element")
+        end)
+        assert.equals("plain", client.rxp.settings.ReplaceColors("plain"))
+    end)
+
+    it("stops with its switch off", function()
+        local client = NewClient({ db = { nameColors = false } })
+        local _, line = step("Kill Grimson the Pale.")
+        client.rxp.settings.ReplaceColors(line)
+        assert.equals("Kill Grimson the Pale.", line.text)
+    end)
+end)
+
 describe("Loreward", function()
     it("skins a window the moment it exists, ElvUI's colours over Loreward's own", function()
         local client = NewClient()
@@ -567,7 +690,7 @@ describe("the translucent style", function()
         assert.equals("NoBackdrop", step.number.template)
         assert.equals("NoBackdrop", rxp.RXPFrame.ScrollChild.framePool[1].template)
         assert.equals(0.4, rxp.themes.ElvUI.background[4])
-        local box = client:LorewardWindow("LorewardFindWindow")
+        local box = client:LorewardWindow("LorewardStepNotes")
         client:Tick()
         assert.equals(0.4, box.backdropColor[4])
         assert.equals("NoBackdrop", box.edit.template)
@@ -577,6 +700,16 @@ describe("the translucent style", function()
         local targets = client:RXPTargetFrame()
         client:Tick()
         assert.equals("NoBackdrop", targets.title.template)
+    end)
+
+    it("leaves the windows you open (Loreward's Find and the like) in ElvUI's own skin", function()
+        local client = NewClient({ db = TRANSLUCENT })
+        local find = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        assert.equals("Transparent", find.template)
+        assert.is_nil(find.customBackdropAlpha)
+        assert.same(rgba(client.E.media.backdropfadecolor), find.backdropColor)
+        assert.equals("Default", find.edit.template)
     end)
 
     it("switches back and forth without a reload, and follows its alpha", function()
@@ -618,7 +751,7 @@ describe("the translucent style", function()
 end)
 
 describe("the transparent style", function()
-    it("takes every backdrop and border away, windows too, and the shadows with them", function()
+    it("takes every backdrop, border and shadow off the HUD, not off the windows you open", function()
         local client = NewClient({ eltruism = true, db = { style = "transparent" }, rxpTheme = "ElvUI" })
         local rxp = client.rxp
         rxp.SetStep(1)
@@ -629,19 +762,22 @@ describe("the transparent style", function()
         end
         assert.equals("NoBackdrop", frame.ScrollChild.framePool[1].template)
         assert.equals(0, rxp.themes.ElvUI.background[4])
-        local box = client:LorewardWindow("LorewardFindWindow")
+        local box = client:LorewardWindow("LorewardStepNotes")
         local panel = client:WaymarkPanel()
+        local find = client:LorewardWindow("LorewardFindWindow")
         client:Tick()
         assert.equals("NoBackdrop", box.template)
         assert.equals("NoBackdrop", client.ns.Waymark.backdrop.template)
         assert.is_nil(shadowOf(box))
         assert.is_nil(shadowOf(client.ns.RestedXP.shadowFrame))
         assert.is_false(panel.glass[1]:IsShown())
+        assert.equals("Transparent", find.template)
+        assert.same({ length = 4, colored = true }, shadowOf(find))
     end)
 
     it("gives everything back when the style goes back to ElvUI's", function()
         local client = NewClient({ eltruism = true, db = { style = "transparent" } })
-        local box = client:LorewardWindow("LorewardFindWindow")
+        local box = client:LorewardWindow("LorewardStepNotes")
         client:Tick()
         client:Set("style", "elvui")
         assert.equals("Transparent", box.template)
@@ -649,13 +785,12 @@ describe("the transparent style", function()
         assert.same({ length = 4, colored = true }, shadowOf(box))
     end)
 
-    it("is a choice in the options, with the shadow switch and the alpha greyed out", function()
+    it("is a choice in the options, with the alpha greyed out; the windows keep their shadow switch", function()
         local client = NewClient({ eltruism = true })
         local page = client:LoadOptions()
         assert.is_string(page.args.style.values.transparent)
-        assert.is_false(page.args.shadow.disabled())
         client:Set("style", "transparent")
-        assert.is_true(page.args.shadow.disabled())
+        assert.is_false(page.args.shadow.disabled())
         assert.is_true(page.args.alpha.disabled())
     end)
 end)

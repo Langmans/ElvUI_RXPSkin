@@ -7,7 +7,10 @@ As Told panel ElvUI's look, for WoW: Forever.
   frame in ElvUI's style, and an "ElvUI" theme in RestedXP's own theme list, in ElvUI's colours and
   font. RestedXP's art in ElvUI's look: no banners, your class icon in an ElvUI frame in place of
   its logo, the settings cog in ElvUI's value colour. The scroll bar shows only while the pointer is
-  over the guide window, as the Carrot tracker does it.
+  over the guide window, as the Carrot tracker does it. In the step list the current step gets an
+  accent bar and its number in ElvUI's value colour, finished steps are dimmed. Mobs, NPCs and
+  items a step names in its `.mob`, `.target` and `.collect` lines are coloured in its text in
+  RestedXP's own text colours, also in guides that don't tag them (Loreward's).
 - **Loreward**: its windows and cards in ElvUI's colours and borders instead of parchment, its
   buttons, check boxes, edit boxes and scroll bars in ElvUI's style; the progress strip's bar like
   ElvUI's data bars.
@@ -20,10 +23,11 @@ As Told panel ElvUI's look, for WoW: Forever.
   font and style, followed when you change them in ElvUI; or a SharedMedia font, outline and
   shadow of your own. RestedXP's ElvUI theme takes it too. ElvUI's Font Slug switch (sharper text)
   applies, as the font goes through ElvUI's `FontTemplate`.
-- **Three styles**: ElvUI's own; translucent: see-through windows at an alpha of your choice, and
-  no backdrop or border on the parts inside them (step numbers, list rows, title tabs, edit boxes);
-  transparent: no backdrop, border or shadow anywhere, only the text, like Eltruism's transparent
-  chat.
+- **Three styles** for what stays on screen while playing (the guide window, Loreward's strip and
+  cards, Waymark's panel): ElvUI's own; translucent: see-through at an alpha of your choice, and
+  no backdrop or border on the parts inside (step numbers, list rows, title tabs, edit boxes);
+  transparent: no backdrop, border or shadow, only the text, like Eltruism's transparent chat.
+  Windows you open (Loreward's Find, Plan and the like, Navigator's) keep ElvUI's own skin.
 
 Every addon except ElvUI is optional; a skin only runs for an addon that is loaded.
 
@@ -45,7 +49,7 @@ if skin and not skin:IsInstalled() then
         restedxp = true, loreward = true, navigator = true, waymark = true,
         hideArt = true, shadow = true,
         style = "translucent", alpha = 0.5, -- or style = "elvui" / "transparent"
-        scrollHover = true,
+        scrollHover = true, markSteps = true, nameColors = true,
         fonts = true, fontFromElvUI = false, font = "Expressway", fontStyle = "OUTLINE", fontShadow = false,
         rxpTheme = true, -- put RestedXP Guides on the ElvUI theme
     })
@@ -70,6 +74,18 @@ value out of range; calling it counts as the installer having run. `ShowInstalle
   style windows get the plugin's alpha through ElvUI's `customBackdropAlpha`, inner parts the
   `NoBackdrop` template; in the transparent style every skinned frame gets `NoBackdrop` and the
   shadows are hidden. Switching style re-applies every skinned frame without a reload.
+- **HUD and windows**: `Skin.Backdrop`, `Skin.Shadow` and `Skin.Window` take a `hud` flag; only
+  HUD frames follow the see-through styles. All of RestedXP's frames and Waymark's panel are HUD,
+  of Loreward's the ones in `Loreward.HUD`.
+- **Step list marks**: RestedXP sets the rows' alpha again in `SetStep` and `BottomFrame.UpdateFrame`
+  (1 for shown rows, 0 for steps above your level); after both, current rows (`step.active`) get
+  100% and an accent texture, finished ones (`completed` or before `GetGuideProgress()`) 35%, the
+  rest 80%. Rows at 0 are left alone.
+- **Names** (`Names.lua`): per step, the names from its elements' `mobs`/`unitscan` (enemy),
+  `targets` (friendly) and `itemName` (loot), longest first, worked out once. After RestedXP's
+  `settings.ReplaceColors` (static text, rebuilt from its original each time) and `Call` (element
+  updates, the objective lines) each occurrence not already inside a `|c…|r` span is wrapped in
+  RestedXP's `guideTextColors` for its tag, a plural or possessive along.
 - **Fonts** (`Fonts.lua`): Loreward, Navigator and Waymark use the game's font objects, which the
   whole UI shares, so the font strings inside the skinned windows are taken one by one instead:
   swept when a window is skinned, shown again or resized, and after RestedXP's renders. A hook on

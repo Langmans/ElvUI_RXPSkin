@@ -152,20 +152,38 @@ function Tests:TemplatesLeaveTheMarksWidgetsAreFoundBy()
     Exists(dropdown.Left and dropdown.Middle and dropdown.Right and dropdown.Button)
 end
 
-function Tests:ASkinnedFrameKeepsElvUIsBorderWhenItsOwnerSetsItsBackdrop()
+---A frame skinned as the plugin does it, whose owner then sets its own backdrop and border colour.
+---@param hud boolean
+---@return table
+local function OwnedFrame(hud)
     local f = Hidden("Frame", "BackdropTemplate")
-    ns.Skin.Backdrop(f, "Transparent", true)
+    ns.Skin.Backdrop(f, "Transparent", true, false, hud)
     f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border" })
     f:SetBackdropBorderColor(1, 0, 0, 1)
+    return f
+end
+
+---ElvUI's one-pixel backdrop in its border colour.
+---@param f table
+local function HasElvUIsBorder(f)
     ---@type {edgeFile: string?}?
     local backdrop = f:GetBackdrop()
-    -- The transparent style leaves no backdrop at all, whatever the owner sets.
-    if ns.Skin.Transparent() then
-        IsFalse(backdrop)
-        return
-    end
     AreEqual(E.media.blankTex, backdrop and backdrop.edgeFile)
     IsTrue(near((f:GetBackdropBorderColor()), E.media.bordercolor.r))
+end
+
+function Tests:AWindowKeepsElvUIsBorderWhenItsOwnerSetsItsBackdrop()
+    HasElvUIsBorder(OwnedFrame(false))
+end
+
+function Tests:TheHUDKeepsItsStyleWhenItsOwnerSetsItsBackdrop()
+    local f = OwnedFrame(true)
+    -- The transparent style leaves the HUD no backdrop at all, whatever the owner sets.
+    if ns.Skin.Transparent() then
+        IsFalse(f:GetBackdrop())
+        return
+    end
+    HasElvUIsBorder(f)
 end
 
 function Tests:RestedXPHasWhatTheSkinUses()
@@ -181,6 +199,14 @@ function Tests:RestedXPHasWhatTheSkinUses()
     Exists(frame.CurrentStepFrame.framePool and frame.ScrollChild.framePool)
     IsTrue(isFunction(frame.UpdateVisuals) and isFunction(frame.UpdateScrollBar))
     Exists(frame.ScrollFrame.ScrollBar)
+    -- Where names get their colours: the text colours by tag, the two functions hooked.
+    IsTrue(isFunction(rxp.settings.ReplaceColors) and isFunction(rxp.Call))
+    IsTrue(type(rxp.guideTextColors.RXP_ENEMY_) == "string" and type(rxp.guideTextColors.RXP_LOOT_) == "string")
+    -- The step list the plugin marks: the guide's progress, the list's update, and with a guide
+    -- loaded, rows with their step and number.
+    IsTrue(isFunction(rxp.GetGuideProgress) and isFunction(frame.BottomFrame.UpdateFrame))
+    local row = frame.ScrollChild.framePool[1]
+    if row then Exists(row.step and row.number and row.number.text) end
     -- The art the plugin swaps: the logo and its class icon, and the cog button's texture.
     Exists(frame.GuideName.icon and frame.GuideName.classIcon)
     Exists(frame.Footer.cog:GetNormalTexture())

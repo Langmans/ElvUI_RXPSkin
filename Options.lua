@@ -14,7 +14,16 @@ local function get(info)
 end
 
 -- The switches that take effect both ways at once; switching off any other skin needs a reload.
-local live = { hideArt = true, scrollHover = true, shadow = true, fontShadow = true, fontFromElvUI = true }
+-- Names coloured stay so until RestedXP builds that text again.
+local live = {
+    hideArt = true,
+    scrollHover = true,
+    markSteps = true,
+    nameColors = true,
+    shadow = true,
+    fontShadow = true,
+    fontFromElvUI = true,
+}
 
 ---@param info string[]
 ---@param value boolean|string|number
@@ -30,11 +39,11 @@ local function rxpOff()
     return not ns.db().restedxp
 end
 
----The shadow switch does something only with Eltruism or WindTools loaded, and not in the
----transparent style.
+---The shadow switch does something only with Eltruism or WindTools loaded. In the transparent
+---style the windows you open still have one.
 ---@return boolean
 local function noShadow()
-    return not ns.Skin.ShadowAddonLoaded() or ns.Skin.Transparent()
+    return not ns.Skin.ShadowAddonLoaded()
 end
 
 ---The alpha slider does something only in the translucent style.
@@ -65,6 +74,8 @@ function ns.InsertOptions()
     end
     args.hideArt.disabled = rxpOff
     args.scrollHover.disabled = rxpOff
+    args.markSteps.disabled = rxpOff
+    args.nameColors.disabled = rxpOff
     args.shadow.disabled = noShadow
     local styles = {
         [ns.Skin.styles.elvui] = L.STYLE_ELVUI,

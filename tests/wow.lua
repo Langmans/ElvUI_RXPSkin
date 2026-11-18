@@ -196,6 +196,13 @@ function NewClient(opts)
         function r:SetInside()
             self.inside = true
         end
+        r.points = {}
+        function r:SetPoint(point, relativeTo, relativePoint, x, y)
+            self.points[#self.points + 1] = { point, relativeTo, relativePoint, x, y }
+        end
+        function r:SetWidth(width)
+            self.width = width
+        end
         return r
     end
 
@@ -907,12 +914,53 @@ function LoadRXPForClient(client, opts)
         end
     end
     ---LoadGuide: a frame per step in the list below the active steps.
+    ---LoadGuide: a frame per step in the list below the active steps, each with its step and a
+    ---number box, all at 66% (the current one is lit by SetStep in RestedXP).
     function rxp:LoadGuide(steps)
         local pool = RXPFrame.ScrollChild.framePool
+        rxp.currentGuide = { steps = {} }
         for i = 1, steps do
-            pool[i] = pool[i] or Frame("Frame", nil, RXPFrame.ScrollChild, "BackdropTemplate")
-            pool[i]:SetBackdrop({ bgFile = "Interface/BUTTONS/WHITE8X8" })
-            pool[i]:SetBackdropColor(unpack(rxp.colors.bottomFrameBG))
+            local row = pool[i] or Frame("Frame", nil, RXPFrame.ScrollChild, "BackdropTemplate")
+            pool[i] = row
+            row:SetBackdrop({ bgFile = "Interface/BUTTONS/WHITE8X8" })
+            row:SetBackdropColor(unpack(rxp.colors.bottomFrameBG))
+            row.step = { index = i, elements = {} }
+            rxp.currentGuide.steps[i] = row.step
+            row.number = row.number or Frame("Frame", nil, row)
+            row.number.text = row.number.text or row.number:CreateFontString()
+            row.number.text.color = { 1, 1, 1 }
+            function row.number.text:SetTextColor(r, g, b)
+                self.color = { r, g, b }
+            end
+            row:SetAlpha(0.66)
+        end
+    end
+    -- The text colours of RestedXP's tags (its Look and Feel settings), as AARRGGBB.
+    rxp.guideTextColors = { RXP_ENEMY_ = "FFFF5722", RXP_FRIENDLY_ = "FF00FF25", RXP_LOOT_ = "FF00BCD4" }
+    ---SettingsPanel.lua's ReplaceColors: the element's text from its original each time, its
+    ---RXP_ tags replaced by their colours; a plain string comes back replaced.
+    function rxp.settings.ReplaceColors(element)
+        local function replace(text)
+            return (text:gsub("RXP_[A-Z]+_", rxp.guideTextColors))
+        end
+        if type(element) ~= "table" then return replace(element) end
+        element.original = element.original or element.text
+        if element.original then element.text = replace(element.original) end
+    end
+    ---RXPGuides.lua's Call: an element function run protected, with the element and its event.
+    function rxp.Call(_, func, ...)
+        return pcall(func, ...)
+    end
+    -- The guide's progress: the step it stands at.
+    rxp.progress = 1
+    function rxp.GetGuideProgress()
+        return rxp.progress
+    end
+    ---BottomFrame.UpdateFrame: every shown row at full alpha, a step above the player's level
+    ---(row.hidden here) at 0.
+    function RXPFrame.BottomFrame.UpdateFrame()
+        for _, row in ipairs(RXPFrame.ScrollChild.framePool) do
+            row:SetAlpha(row.hidden and 0 or 1)
         end
     end
 

@@ -10,7 +10,18 @@ local E, V, P = ElvUI[1], ElvUI[3], ElvUI[4]
 ns.NAME = NAME
 ns.addons = {}
 -- The switches other plugins may set through the API, with the option page's order.
-ns.SWITCHES = { "restedxp", "loreward", "navigator", "waymark", "hideArt", "scrollHover", "shadow", "fonts" }
+ns.SWITCHES = {
+    "restedxp",
+    "loreward",
+    "navigator",
+    "waymark",
+    "hideArt",
+    "scrollHover",
+    "markSteps",
+    "nameColors",
+    "shadow",
+    "fonts",
+}
 
 -- ElvUI's general font style, split as the options show it: an outline and a shadow switch.
 local shadow = P.general.fontStyle:sub(1, 6) == "SHADOW"
@@ -23,6 +34,8 @@ P[NAME] = {
     waymark = true,
     hideArt = true,
     scrollHover = true,
+    markSteps = true,
+    nameColors = true,
     shadow = true,
     style = "elvui",
     alpha = 0.5,

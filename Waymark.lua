@@ -34,8 +34,9 @@ local function skin(panel)
     -- The panel's own level, below the words' frame one above it.
     backdrop:SetFrameLevel(panel:GetFrameLevel())
     W.backdrop = backdrop
-    Skin.Backdrop(backdrop, "Transparent", true)
-    Skin.Shadow(backdrop)
+    -- Part of the HUD: it stays on screen while playing.
+    Skin.Backdrop(backdrop, "Transparent", true, false, true)
+    Skin.Shadow(backdrop, true)
     -- Its lines are made as the quests change; the panel is resized each time.
     ns.Fonts.Watch(panel)
 end

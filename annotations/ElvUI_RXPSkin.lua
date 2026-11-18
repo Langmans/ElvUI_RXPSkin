@@ -81,6 +81,8 @@ ElvUI = nil
 ---@field waymark boolean skin Waymark's As Told panel
 ---@field hideArt boolean ElvUI's look for RestedXP's art: no banners, the class icon, a tinted cog
 ---@field scrollHover boolean RestedXP's scroll bar only while the pointer is over the guide window
+---@field markSteps boolean the current step marked and finished steps dimmed in RestedXP's list
+---@field nameColors boolean a step's mobs, NPCs and items coloured in its text
 ---@field shadow boolean Eltruism's or WindTools' shadow round the skinned windows
 ---@field style string one of Skin.styles: "elvui", "translucent" or "transparent"
 ---@field alpha number the translucent style's backdrop alpha, 0 to 1
@@ -119,25 +121,41 @@ ElvUI = nil
 ---@field borderColors table<string, number[]>
 ---@field edge {edgeFile: string, edgeSize: number}
 
+---A step of a RestedXP guide, the parts the plugin reads.
+---@class RXPGuidesStep
+---@field index number its place in the guide
+---@field active? boolean one of the steps you are on
+---@field completed? boolean done
+---@field elements? table[] its lines (.mob, .collect, the text and so on)
+
+---A row of RestedXP's step list (GuideWindow.lua's LoadGuide): its step and its number box.
+---@class RXPGuidesListRow : Frame
+---@field step? RXPGuidesStep
+---@field number? {text: FontString}
+
 ---A step frame of RestedXP's v1 window, with its number box.
 ---@class RXPGuidesStepFrame : Frame
 ---@field number Frame
 
 ---RestedXP's v1 guide window (GuideWindow.lua).
 ---@class RXPGuidesFrame : Frame
----@field BottomFrame Frame
+---@field BottomFrame Frame|{UpdateFrame: fun(self: table?, stepn: number?)} the step list's frame
 ---@field GuideName Frame|{bg: Texture, icon: Texture, classIcon: Texture} its banner, logo and class icon
 ---@field Footer Frame|{bg: Texture, cog: Button} its banner and the settings cog
 ---@field CurrentStepFrame {framePool: RXPGuidesStepFrame[]}
----@field ScrollChild {framePool: Frame[]}
+---@field ScrollChild {framePool: RXPGuidesListRow[]}
 ---@field ScrollFrame {ScrollBar: Slider} the step list's UIPanelScrollFrameTemplate
 ---@field UpdateVisuals fun(self: RXPGuidesFrame)
 ---@field UpdateScrollBar fun() puts the theme's art on the scroll bar
 
 ---RestedXP Guides' AceAddon object, the parts the plugin touches.
 ---@class RXPGuidesAddon
----@field settings {profile: {activeTheme: string}}
+---@field settings {profile: {activeTheme: string}, ReplaceColors: fun(element: any): string?}
+---@field guideTextColors table<string, string> the colours of its text tags, AARRGGBB by tag
+---@field Call fun(label: string?, func: function, ...: any): ...
 ---@field themes table<string, RXPGuidesTheme> the v1 themes by name
+---@field activeTheme? {textColor: number[]} the theme drawn with now
+---@field GetGuideProgress fun(): number? the step the guide stands at; nil without a guide
 ---@field v2 {themes: table<string, RXPGuidesThemeV2>, IsGuideWindowEnabled: fun(self: table): boolean, ConvertThemes: fun(self: table)}
 ---@field RXPFrame RXPGuidesFrame
 ---@field RegisterTheme fun(self: RXPGuidesAddon, theme: RXPGuidesTheme)
@@ -220,17 +238,17 @@ WindTools = nil
 
 ---Skin.lua.
 ---@class ElvUIRXPSkinSkin
----@field Backdrop fun(frame: table, template: string, force: boolean?, inner: boolean?)
+---@field Backdrop fun(frame: table, template: string, force: boolean?, inner: boolean?, hud: boolean?)
 ---@field styles {elvui: string, translucent: string, transparent: string} the looks the plugin offers
 ---@field Alpha fun(): number? the current style's backdrop alpha, nil in ElvUI's own
 ---@field Transparent fun(): boolean the transparent style is on
 ---@field Refresh fun()
 ---@field Widgets fun(frame: table)
----@field Shadow fun(frame: table)
+---@field Shadow fun(frame: table, hud: boolean?)
 ---@field shadows {eltruism: string, windtools: string} the shadow variants
 ---@field ShadowVariant fun(): string?
 ---@field ShadowAddonLoaded fun(): boolean
----@field Window fun(frame: table, template: string?)
+---@field Window fun(frame: table, template: string?, hud: boolean?)
 ---@field Watch fun(names: string[], fn: fun(frame: table))
 
 ---ElvUI's PluginInstaller frame: a title, three lines of text and four option buttons.
@@ -259,8 +277,9 @@ PluginInstallFrame = nil
 ---@field Skin ElvUIRXPSkinSkin
 ---@field Install ElvUIRXPSkinInstall
 ---@field Fonts ElvUIRXPSkinFonts
+---@field Names {Hook: fun(addon: RXPGuidesAddon)} Names.lua
 ---@field outlines fun(): table<string, string> ElvUI's font styles less the "SHADOW..." ones
 ---@field RestedXP ElvUIRXPSkinRestedXP
----@field Loreward ElvUIRXPSkinLoreward
+---@field Loreward ElvUIRXPSkinLoreward|{HUD: table<string, boolean>}
 ---@field Navigator ElvUIRXPSkinNavigator
 ---@field Waymark ElvUIRXPSkinWaymark

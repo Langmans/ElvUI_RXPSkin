@@ -21,6 +21,8 @@ local R = { ADDON = "RXPGuides", key = "restedxp", THEME = "ElvUI" }
 ns.RestedXP = R
 -- RestedXP's frames built on first use (Targeting.lua).
 R.TARGET_FRAMES = { "RXPTargetFrame" }
+-- Everything of RestedXP's stays on screen while playing: all of it follows the see-through styles.
+local HUD = true
 local S = E:GetModule("Skins") ---@type ElvUISkins
 
 -- RestedXP's addon object, from Load on; nil without RestedXP.
@@ -99,7 +101,7 @@ local function makeClassIcon(guideName)
     local cell = CLASS_ICON_TCOORDS[class]
     icon:SetTexCoord(cell[1] + CROP, cell[2] - CROP, cell[3] + CROP, cell[4] - CROP)
     holder.icon = icon
-    Skin.Backdrop(holder, "Default", true, true)
+    Skin.Backdrop(holder, "Default", true, true, HUD)
     return holder
 end
 
@@ -142,8 +144,8 @@ end
 ---The active steps, built and pooled by SetStep, each with a number box.
 local function skinSteps()
     for _, step in ipairs(rxp.RXPFrame.CurrentStepFrame.framePool) do
-        Skin.Backdrop(step, "Transparent")
-        Skin.Backdrop(step.number, "Transparent", false, true)
+        Skin.Backdrop(step, "Transparent", false, false, HUD)
+        Skin.Backdrop(step.number, "Transparent", false, true, HUD)
     end
     ns.Fonts.Sweep(rxp.RXPFrame.CurrentStepFrame)
 end
@@ -151,9 +153,71 @@ end
 ---The step list below them, built by LoadGuide: rows inside the list's window.
 local function skinList()
     for _, row in ipairs(rxp.RXPFrame.ScrollChild.framePool) do
-        Skin.Backdrop(row, "Default", false, true)
+        Skin.Backdrop(row, "Default", false, true, HUD)
     end
     ns.Fonts.Sweep(rxp.RXPFrame.ScrollChild)
+end
+
+-- How bright a row of the step list is: finished, still to do, current. RestedXP's own: all at
+-- 66%, the current one at 100%.
+local DONE, AHEAD, CURRENT = 0.35, 0.8, 1
+local RXP_REST = 0.66
+-- The accent bar at the left of each row, made once per row. Weak keys.
+---@type table<Frame, Texture>
+local accents = setmetatable({}, { __mode = "k" })
+
+---A row's accent bar: ElvUI's value colour down its left edge.
+---@param row Frame
+---@return Texture
+function R.accentOf(row)
+    local accent = accents[row]
+    if not accent then
+        accent = row:CreateTexture(nil, "OVERLAY")
+        accent:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+        accent:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+        accent:SetWidth(3)
+        accent:Hide()
+        accents[row] = accent
+    end
+    return accent
+end
+
+---Marks the step list: the current step(s) lit with an accent bar and the number in ElvUI's value
+---colour, finished steps (before the guide's progress) dimmed, the rest a little. RestedXP sets the
+---rows' alpha again in SetStep and BottomFrame.UpdateFrame; a row it hides (alpha 0, a step above
+---your level) stays hidden. With the switch off, RestedXP's own look.
+local function markSteps()
+    local on = ns.db().markSteps
+    -- Nothing before a guide is loaded.
+    local progress = rxp.GetGuideProgress() or 0
+    local value = E.media.rgbvaluecolor
+    ---@type number[]?
+    local text = rxp.activeTheme and rxp.activeTheme.textColor
+    for _, row in ipairs(rxp.RXPFrame.ScrollChild.framePool) do
+        local step = row.step
+        if step and row:GetAlpha() > 0 then
+            local current = step.active == true
+            local alpha
+            if not on then
+                alpha = current and CURRENT or RXP_REST
+            elseif current then
+                alpha = CURRENT
+            else
+                alpha = (step.completed or step.index < progress) and DONE or AHEAD
+            end
+            row:SetAlpha(alpha)
+            local accent = R.accentOf(row)
+            accent:SetColorTexture(value.r, value.g, value.b, 1)
+            accent:SetShown(on and current)
+            ---@type FontString?
+            local number = row.number and row.number.text
+            if number and on and current then
+                number:SetTextColor(value.r, value.g, value.b)
+            elseif number and text then
+                number:SetTextColor(text[1], text[2], text[3])
+            end
+        end
+    end
 end
 
 ---The step list's scroll bar in ElvUI's style. RestedXP's UpdateScrollBar does nothing but put
@@ -201,9 +265,9 @@ end
 ---again on every render, in the theme's colour.
 ---@param frame table
 local function skinTargets(frame)
-    Skin.Backdrop(frame, "Transparent")
-    Skin.Backdrop(frame.title, "Transparent", false, true)
-    Skin.Shadow(frame)
+    Skin.Backdrop(frame, "Transparent", false, false, HUD)
+    Skin.Backdrop(frame.title, "Transparent", false, true, HUD)
+    Skin.Shadow(frame, HUD)
     ns.Fonts.Watch(frame)
 end
 
@@ -215,7 +279,7 @@ function R:Load()
     if rxp.v2:IsGuideWindowEnabled() then fixV2() end
     local frame = rxp.RXPFrame
     for _, key in ipairs({ "BottomFrame", "GuideName", "Footer" }) do
-        Skin.Backdrop(frame[key], "Transparent")
+        Skin.Backdrop(frame[key], "Transparent", false, false, HUD)
     end
     -- RXPFrame is 3 pixels wider on each side than its step list and footer, so a shadow round it
     -- shows as a second edge beside the list; this frame covers just the two, under them.
@@ -224,13 +288,16 @@ function R:Load()
     holder:SetPoint("BOTTOMRIGHT", frame.Footer, "BOTTOMRIGHT")
     holder:SetFrameLevel(math.max(frame.BottomFrame:GetFrameLevel() - 1, 0))
     R.shadowFrame = holder
-    Skin.Shadow(holder)
+    Skin.Shadow(holder, HUD)
     R.classIcon = makeClassIcon(frame.GuideName)
     frame.Footer.cog:HookScript("OnEnter", cogEnter)
     frame.Footer.cog:HookScript("OnLeave", tintCog)
     hooksecurefunc(frame, "UpdateVisuals", art)
     hooksecurefunc(rxp, "SetStep", skinSteps)
+    hooksecurefunc(rxp, "SetStep", markSteps)
+    hooksecurefunc(frame.BottomFrame, "UpdateFrame", markSteps)
     hooksecurefunc(rxp, "LoadGuide", skinList)
+    ns.Names.Hook(rxp)
     ns.Fonts.Watch(frame)
     skinSteps()
     skinList()
@@ -254,6 +321,7 @@ function R:Update()
     end
     art()
     scrollMode()
+    markSteps()
     if active() then rxp.RenderFrame() end
 end
 
