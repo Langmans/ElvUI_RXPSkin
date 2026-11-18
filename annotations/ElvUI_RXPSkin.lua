@@ -27,6 +27,7 @@ ElvUI = nil
 ---@field rgbvaluecolor ElvUIColor
 ---@field hexvaluecolor string the value colour as "|cffrrggbb"
 ---@field blankTex string
+---@field normTex string ElvUI's primary status bar texture
 ---@field normFont string the file of ElvUI's general font
 
 ---@class ElvUIEngine
@@ -42,6 +43,7 @@ ElvUI = nil
 ---@field UpdateMedia fun(self: ElvUIEngine, mediaType: string?)
 ---@field Delay fun(self: ElvUIEngine, delay: number, fn: function, ...: any)
 ---@field StaticPopup_Show fun(self: ElvUIEngine, which: string)
+---@field RegisterStatusBar fun(self: ElvUIEngine, bar: table) kept in ElvUI's primary texture
 ---@field UIFrameFadeIn fun(self: ElvUIEngine, frame: table, time: number, from: number, to: number)
 ---@field UIFrameFadeOut fun(self: ElvUIEngine, frame: table, time: number, from: number, to: number)
 

@@ -17,3 +17,4 @@
   ElvUI's own general font and style, followed when they change.
 - RestedXP's logo gives way to your class icon in an ElvUI frame, its cog in ElvUI's value colour.
 - RestedXP's scroll bar shows only while the pointer is over the guide window.
+- Loreward's progress bar like ElvUI's data bars: ElvUI's texture in its value colour.

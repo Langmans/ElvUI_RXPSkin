@@ -9,7 +9,8 @@ As Told panel ElvUI's look, for WoW: Forever.
   its logo, the settings cog in ElvUI's value colour. The scroll bar shows only while the pointer is
   over the guide window, as the Carrot tracker does it.
 - **Loreward**: its windows and cards in ElvUI's colours and borders instead of parchment, its
-  buttons, check boxes, edit boxes and scroll bars in ElvUI's style.
+  buttons, check boxes, edit boxes and scroll bars in ElvUI's style; the progress strip's bar like
+  ElvUI's data bars.
 - **RestedXP Navigator**: its panels in ElvUI's colours, its close buttons and drop-downs in
   ElvUI's style.
 - **Waymark**: its As Told panel on ElvUI's backdrop instead of its own dark glass.

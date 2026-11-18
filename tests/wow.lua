@@ -484,8 +484,14 @@ function NewClient(opts)
         rgbvaluecolor = { r = 0.09, g = 0.52, b = 0.82 },
         hexvaluecolor = "|cff1784d1",
         blankTex = "Interface\\ElvUI\\Blank",
+        normTex = "Interface\\ElvUI\\Norm",
         normFont = "Fonts\\ElvUI\\Expressway.ttf",
     }
+    ---ElvUI keeps registered status bars in its primary texture when that setting changes.
+    E.statusbars = {}
+    function E:RegisterStatusBar(bar)
+        self.statusbars[bar] = true
+    end
     E.Options = not opts.noOptions and { args = {} } or nil
     client.E = E
 
@@ -712,6 +718,28 @@ function NewClient(opts)
         panel.body.mark = panel.body:CreateTexture()
         panel.body.line = panel.body:CreateFontString(nil, nil, "GameFontNormal")
         return panel
+    end
+    ---Loreward's progress strip (Progress.lua's makeFrame): its own backdrop, a status bar gold on a
+    ---dark track, and a gold hairline above the lines below; each coloured once, when it is built.
+    ---@return table
+    function client:LorewardStrip()
+        local f = Frame("Frame", "LorewardProgressStrip", UIParent, "BackdropTemplate")
+        f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8" })
+        local bar = Frame("StatusBar", nil, f)
+        function bar:SetStatusBarTexture(file)
+            self.texture = file
+        end
+        function bar:SetStatusBarColor(r, g, b, a)
+            self.color = { r, g, b, a or 1 }
+        end
+        bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+        bar:SetStatusBarColor(0.82, 0.66, 0.32, 0.95)
+        bar.track = bar:CreateTexture()
+        bar.track:SetColorTexture(0.22, 0.17, 0.09, 0.9)
+        f.bar = bar
+        f.divider = f:CreateTexture()
+        f.divider:SetColorTexture(0.6, 0.5, 0.3, 0.45)
+        return f
     end
     ---A RestedXP Navigator window: a close button and a drop-down menu.
     ---@param windowName string

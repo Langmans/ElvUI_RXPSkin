@@ -67,6 +67,16 @@ function Tests:ElvUIHasItsFades()
     IsTrue(isFunction(E.UIFrameFadeIn) and isFunction(E.UIFrameFadeOut))
 end
 
+function Tests:LorewardsStripHasItsBarTrackAndDivider()
+    IsTrue(isFunction(E.RegisterStatusBar))
+    ---@type table?
+    local strip = _G.LorewardProgressStrip
+    if not strip then return end
+    AreEqual("StatusBar", strip.bar:GetObjectType())
+    Exists(strip.bar.track)
+    Exists(strip.divider)
+end
+
 function Tests:ElvUIPluginInstallerHasItsFrame()
     local PI = E:GetModule("PluginInstaller") ---@type ElvUIPluginInstaller
     IsTrue(isFunction(PI.Queue))
