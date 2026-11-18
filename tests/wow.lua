@@ -94,10 +94,68 @@ function NewClient(opts)
         return n
     end
 
-    ---A texture region.
+    -- Font strings share one metatable, as in the client: a hook on it reaches every one. Font
+    -- objects (CreateFont) have their own, with the same font methods.
+    local fontMethods = {}
+    function fontMethods:GetObjectType()
+        return "FontString"
+    end
+    function fontMethods:SetFont(path, size, flags)
+        self.font, self.size, self.flags = path, size, flags or ""
+    end
+    function fontMethods:GetFont()
+        return self.font, self.size, self.flags
+    end
+    function fontMethods:SetFontObject(object)
+        self.fontObject = object
+        self.font, self.size, self.flags = object:GetFont()
+    end
+    function fontMethods:SetShadowColor(_, _, _, a)
+        self.shadowAlpha = a
+    end
+    function fontMethods:SetShadowOffset(x, y)
+        self.shadowX, self.shadowY = x, y
+    end
+    function fontMethods:SetText(text)
+        self.text = text
+    end
+    function fontMethods:Show()
+        self.shown = true
+    end
+    function fontMethods:Hide()
+        self.shown = false
+    end
+    function fontMethods:IsShown()
+        return self.shown
+    end
+    local fontMeta = { __index = fontMethods }
+    local objectMethods = setmetatable({
+        GetObjectType = function()
+            return "Font"
+        end,
+    }, { __index = fontMethods })
+    function CreateFont(fontName)
+        local font = setmetatable({}, { __index = objectMethods })
+        if fontName then _G[fontName] = font end
+        return font
+    end
+    GameFontNormal = CreateFont("GameFontNormal")
+    GameFontNormal:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    client.fontMethods = fontMethods
+
+    ---A region: a texture, or a font string, which takes a font template's font as the client
+    ---does, without a call.
     ---@param kind string? "Texture" or "FontString"
-    local function Region(kind)
-        local r = { shown = true, kind = kind or "Texture" }
+    ---@param template string? a font object's name, for a font string
+    local function Region(kind, template)
+        if kind == "FontString" then
+            local fs = setmetatable({ shown = true }, fontMeta)
+            if template then
+                fs.font, fs.size, fs.flags = _G[template]:GetFont()
+            end
+            return fs
+        end
+        local r = { shown = true, kind = "Texture" }
         function r:GetObjectType()
             return self.kind
         end
@@ -118,12 +176,6 @@ function NewClient(opts)
         end
         function r:SetColorTexture(red, g, b, a)
             self.color = { red, g, b, a }
-        end
-        function r:SetFont(path, size, flags)
-            self.font, self.size, self.flags = path, size, flags
-        end
-        function r:GetFont()
-            return self.font, self.size, self.flags
         end
         return r
     end
@@ -171,8 +223,8 @@ function NewClient(opts)
             self.regions[#self.regions + 1] = t
             return t
         end
-        function f:CreateFontString()
-            local t = Region("FontString")
+        function f:CreateFontString(_, _, template)
+            local t = Region("FontString", template)
             self.regions[#self.regions + 1] = t
             return t
         end
@@ -311,6 +363,39 @@ function NewClient(opts)
     function ACH:Header(headerName, order)
         return { type = "header", name = headerName, order = order }
     end
+    ACH.FontValues = { NONE = "None", OUTLINE = "Outline", SHADOW = "Shadow", SHADOWOUTLINE = "Shadow Outline" }
+    function ACH:SharedMediaFont(fontName, desc, order, width, get, set, disabled)
+        return {
+            type = "select",
+            dialogControl = "LSM30_Font",
+            name = fontName,
+            desc = desc,
+            order = order,
+            width = width,
+            get = get,
+            set = set,
+            disabled = disabled,
+        }
+    end
+    function ACH:FontFlags(flagsName, desc, order, width, get, set, disabled)
+        return {
+            type = "select",
+            values = ACH.FontValues,
+            name = flagsName,
+            desc = desc,
+            order = order,
+            width = width,
+            get = get,
+            set = set,
+            disabled = disabled,
+        }
+    end
+    -- SharedMedia: every font name is a file in its folder here.
+    local LSM = {
+        Fetch = function(_, _, fontName)
+            return "Fonts\\SharedMedia\\" .. fontName .. ".ttf"
+        end,
+    }
     local libs = {
         ["AceLocale-3.0"] = {
             NewLocale = function(_, app, _, isDefault)
@@ -344,8 +429,18 @@ function NewClient(opts)
     end
 
     -- ElvUI: the engine, its profile defaults (P), private defaults (V) and media.
-    local E = { mult = 0.71, frames = {}, Libs = { ACH = ACH } }
-    local P, V = { general = {} }, { general = {} }
+    local E = { mult = 0.71, frames = {}, texts = {}, Libs = { ACH = ACH, LSM = LSM } }
+    local P, V = { general = { font = "PT Sans Narrow", fontStyle = "OUTLINE" } }, { general = {} }
+    ---Toolkit.lua's FontTemplate, which ElvUI adds to every font string: a SharedMedia font name,
+    ---a size and a style, "SHADOW..." being a shadow; the text kept for ElvUI's font updates.
+    function fontMethods:FontTemplate(fontName, size, style)
+        E.texts[self] = { fontName = fontName, fontSize = size, fontStyle = style }
+        local shadow = style:sub(1, 6) == "SHADOW"
+        local flags = shadow and style:sub(7) or style
+        self:SetFont(LSM:Fetch("font", fontName), size, flags == "NONE" and "" or flags)
+        self:SetShadowColor(0, 0, 0, shadow and 1 or 0)
+        self:SetShadowOffset(shadow and 1 or 0, shadow and -1 or 0)
+    end
     E.media = {
         backdropcolor = { r = 0.1, g = 0.1, b = 0.1 },
         backdropfadecolor = { r = 0.06, g = 0.06, b = 0.06, a = 0.8 },
@@ -551,6 +646,10 @@ function NewClient(opts)
         function box.bar:GetThumbTexture()
             return {}
         end
+        -- Text from the game's font object, on the window and in a row inside it.
+        box.title = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        box.row = Frame("Frame", nil, box)
+        box.row.text = box.row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         return box
     end
     ---Waymark's As Told panel (AsToldPanel.lua's Build), made the first time it shows: its glass as
@@ -562,6 +661,7 @@ function NewClient(opts)
         panel.glass = { panel:CreateTexture(), panel:CreateTexture(), panel:CreateTexture() }
         panel.body = Frame("Frame", nil, panel)
         panel.body.mark = panel.body:CreateTexture()
+        panel.body.line = panel.body:CreateFontString(nil, nil, "GameFontNormal")
         return panel
     end
     ---A RestedXP Navigator window: a close button and a drop-down menu.
@@ -599,6 +699,7 @@ function LoadRXPForClient(client, opts)
         texturePath = "Interface/AddOns/RXPGuides/Textures/",
         headerTexture = "rxp-banner",
         textColor = { 1, 1, 1 },
+        font = "Fonts\\FRIZQT__.TTF",
         edges = { edge = "Interface/AddOns/RXPGuides/Textures/rxp-borders" },
     }
     rxp.themes["RXP Blue"] = blue
@@ -638,6 +739,7 @@ function LoadRXPForClient(client, opts)
     function rxp:LoadActiveTheme()
         self.activeTheme = self.themes[self.settings.profile.activeTheme] or blue
         self.colors = self.activeTheme
+        self.font = self.activeTheme.font
         return self.activeTheme
     end
 
@@ -698,8 +800,11 @@ function LoadRXPForClient(client, opts)
             if not step then
                 step = Frame("Frame", nil, RXPFrame.CurrentStepFrame, "BackdropTemplate")
                 step.number = Frame("Frame", nil, step, "BackdropTemplate")
+                step.text = step:CreateFontString()
                 pool[i] = step
             end
+            -- Each step's text in the theme's font, at the guide's font size.
+            step.text:SetFont(rxp.font, 12, "")
             if step.theme ~= rxp.activeTheme then
                 step.theme = rxp.activeTheme
                 step:SetBackdrop(edge)

@@ -23,11 +23,21 @@ L.shadow_DESC =
     "Eltruism's or WindTools' shadow round the skinned windows, when that addon's own shadow option is on. Greyed out without either."
 
 L.STYLE = "Style"
-L.STYLE_DESC = "Translucent: see-through windows, and no backdrop or border on the parts inside them."
+L.STYLE_DESC =
+    "Translucent: see-through windows, and no backdrop or border on the parts inside them. Transparent: no backdrop, border or shadow anywhere, only the text."
 L.STYLE_ELVUI = "ElvUI"
 L.STYLE_TRANSLUCENT = "Translucent"
+L.STYLE_TRANSPARENT = "Transparent"
 L.ALPHA = "Translucent backdrop"
 L.ALPHA_DESC = "How solid the windows' backdrop is in the translucent style."
+
+L.fonts_TITLE = "Fonts"
+L.fonts_DESC =
+    "The font below on the text in the skinned windows, at the sizes the addons give it. RestedXP's ElvUI theme takes it too."
+L.FONT = "Font"
+L.FONT_STYLE = "Outline"
+L.FONT_SHADOW = "Shadow"
+L.FONT_SHADOW_DESC = "A drop shadow behind the text, which helps it stand out without a backdrop."
 
 L.YES = "Skin it"
 L.NO = "Leave it"

@@ -36,6 +36,8 @@ local function skin(panel)
     W.backdrop = backdrop
     Skin.Backdrop(backdrop, "Transparent", true)
     Skin.Shadow(backdrop)
+    -- Its lines are made as the quests change; the panel is resized each time.
+    ns.Fonts.Watch(panel)
 end
 
 function W:Load()

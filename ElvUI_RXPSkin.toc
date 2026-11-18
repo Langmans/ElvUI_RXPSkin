@@ -11,6 +11,7 @@
 Locales\enUS.lua
 Core.lua
 Skin.lua
+Fonts.lua
 RestedXP.lua
 Loreward.lua
 Navigator.lua

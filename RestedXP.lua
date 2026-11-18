@@ -52,7 +52,8 @@ local function color()
     fill(theme.bottomFrameHighlight, m.rgbvaluecolor, 0.5)
     fill(theme.mapPins, m.rgbvaluecolor)
     theme.tooltip = m.hexvaluecolor
-    theme.font = m.normFont
+    local db = ns.db()
+    theme.font = db.fonts and E.Libs.LSM:Fetch("font", db.font) or m.normFont
     theme.bgTextures.edge, theme.bgTextures.bottom = m.blankTex, m.blankTex
 end
 
@@ -87,6 +88,7 @@ local function skinSteps()
         Skin.Backdrop(step, "Transparent")
         Skin.Backdrop(step.number, "Transparent", false, true)
     end
+    ns.Fonts.Sweep(rxp.RXPFrame.CurrentStepFrame)
 end
 
 ---The step list below them, built by LoadGuide: rows inside the list's window.
@@ -94,6 +96,7 @@ local function skinList()
     for _, row in ipairs(rxp.RXPFrame.ScrollChild.framePool) do
         Skin.Backdrop(row, "Default", false, true)
     end
+    ns.Fonts.Sweep(rxp.RXPFrame.ScrollChild)
 end
 
 ---The step list's scroll bar in ElvUI's style. RestedXP's UpdateScrollBar does nothing but put
@@ -111,6 +114,7 @@ local function skinTargets(frame)
     Skin.Backdrop(frame, "Transparent")
     Skin.Backdrop(frame.title, "Transparent", false, true)
     Skin.Shadow(frame)
+    ns.Fonts.Watch(frame)
 end
 
 function R:Load()
@@ -134,6 +138,7 @@ function R:Load()
     hooksecurefunc(frame, "UpdateVisuals", banners)
     hooksecurefunc(rxp, "SetStep", skinSteps)
     hooksecurefunc(rxp, "LoadGuide", skinList)
+    ns.Fonts.Watch(frame)
     skinSteps()
     skinList()
     skinScrollBar()

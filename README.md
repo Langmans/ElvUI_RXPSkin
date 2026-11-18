@@ -13,8 +13,13 @@ As Told panel ElvUI's look, for WoW: Forever.
 - **Waymark**: its As Told panel on ElvUI's backdrop instead of its own dark glass.
 - **Shadows**: with Eltruism or WindTools loaded and that addon's own shadow option on, the skinned
   windows get its shadow.
-- **Two styles**: ElvUI's own, or translucent: see-through windows at an alpha of your choice, and
-  no backdrop or border on the parts inside them (step numbers, list rows, title tabs, edit boxes).
+- **Fonts**: a SharedMedia font with ElvUI's outline and an optional shadow on the text in the
+  skinned windows, at the sizes the addons give it; RestedXP's ElvUI theme takes it too. By default
+  ElvUI's general font and style.
+- **Three styles**: ElvUI's own; translucent: see-through windows at an alpha of your choice, and
+  no backdrop or border on the parts inside them (step numbers, list rows, title tabs, edit boxes);
+  transparent: no backdrop, border or shadow anywhere, only the text, like Eltruism's transparent
+  chat.
 
 Every addon except ElvUI is optional; a skin only runs for an addon that is loaded.
 
@@ -35,14 +40,16 @@ if skin and not skin:IsInstalled() then
     skin:Configure({
         restedxp = true, loreward = true, navigator = true, waymark = true,
         hideArt = true, shadow = true,
-        style = "translucent", alpha = 0.5, -- or style = "elvui"
+        style = "translucent", alpha = 0.5, -- or style = "elvui" / "transparent"
+        fonts = true, font = "Expressway", fontStyle = "OUTLINE", fontShadow = false,
         rxpTheme = true, -- put RestedXP Guides on the ElvUI theme
     })
 end
 ```
 
-`Configure` takes booleans by the option keys, `style` and `alpha` (0 to 1), and ignores the rest
-or a value out of range; calling it counts as the installer having run. `ShowInstaller()` queues the installer again.
+`Configure` takes booleans by the option keys, `style`, `alpha` (0 to 1), `font` (a SharedMedia
+name) and `fontStyle` (one of ElvUI's outlines, not a "SHADOW..." style), and ignores the rest or a
+value out of range; calling it counts as the installer having run. `ShowInstaller()` queues the installer again.
 
 ## How it works
 
@@ -56,7 +63,14 @@ or a value out of range; calling it counts as the installer having run. `ShowIns
   own background colour, which marks step states; Loreward's get ElvUI's colours forced.
 - **Translucent**: a skinned frame is a window or "inner" (nested in one). In the translucent
   style windows get the plugin's alpha through ElvUI's `customBackdropAlpha`, inner parts the
-  `NoBackdrop` template; switching style re-applies every skinned frame without a reload.
+  `NoBackdrop` template; in the transparent style every skinned frame gets `NoBackdrop` and the
+  shadows are hidden. Switching style re-applies every skinned frame without a reload.
+- **Fonts** (`Fonts.lua`): Loreward, Navigator and Waymark use the game's font objects, which the
+  whole UI shares, so the font strings inside the skinned windows are taken one by one instead:
+  swept when a window is skinned, shown again or resized, and after RestedXP's renders. A hook on
+  the shared font string methods `SetFont` and `SetFontObject` puts the chosen font back, through
+  ElvUI's `FontTemplate`, on a taken font string whenever its addon sets a font again; the size
+  stays the addon's. Text anywhere else is left alone. Switching the fonts off takes a reload.
 - **Scroll bar**: RestedXP's `RXPFrame.UpdateScrollBar` only puts its theme's art on the step
   list's bar, on every render; after ElvUI's `HandleScrollBar` it is replaced by an empty function.
 - **Guide window shadow**: `RXPFrame` is 3 pixels wider than the list and footer it shows, so the

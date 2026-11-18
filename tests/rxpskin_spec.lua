@@ -45,6 +45,11 @@ describe("the plugin", function()
             shadow = true,
             style = "elvui",
             alpha = 0.5,
+            -- ElvUI's general font and its style (OUTLINE here), without a shadow.
+            fonts = true,
+            font = "PT Sans Narrow",
+            fontStyle = "OUTLINE",
+            fontShadow = false,
         }
         assert.same(expected, db)
     end)
@@ -219,7 +224,8 @@ describe("RestedXP Guides", function()
         assert.same(rgba(m.backdropcolor), theme.bottomFrameBG)
         assert.same(rgba(m.rgbvaluecolor, 0.5), theme.bottomFrameHighlight)
         assert.same(rgba(m.rgbvaluecolor), theme.mapPins)
-        assert.equals(m.normFont, theme.font)
+        -- The plugin's font (ElvUI's general one by default); ElvUI's own file with the fonts off.
+        assert.equals("Fonts\\SharedMedia\\PT Sans Narrow.ttf", theme.font)
         assert.equals(m.blankTex, theme.bgTextures.edge)
         assert.is_true(theme.applicable)
     end)
@@ -493,6 +499,175 @@ describe("the translucent style", function()
         _G.ElvUI_RXPSkin:Configure({ style = "glass", alpha = 2 })
         assert.equals("translucent", client:Db().style)
         assert.equals(0.25, client:Db().alpha)
+    end)
+end)
+
+describe("the transparent style", function()
+    it("takes every backdrop and border away, windows too, and the shadows with them", function()
+        local client = NewClient({ eltruism = true, db = { style = "transparent" }, rxpTheme = "ElvUI" })
+        local rxp = client.rxp
+        rxp.SetStep(1)
+        rxp:LoadGuide(1)
+        local frame = rxp.RXPFrame
+        for _, f in ipairs({ frame.BottomFrame, frame.GuideName, frame.Footer, frame.CurrentStepFrame.framePool[1] }) do
+            assert.equals("NoBackdrop", f.template)
+        end
+        assert.equals("NoBackdrop", frame.ScrollChild.framePool[1].template)
+        assert.equals(0, rxp.themes.ElvUI.background[4])
+        local box = client:LorewardWindow("LorewardFindWindow")
+        local panel = client:WaymarkPanel()
+        client:Tick()
+        assert.equals("NoBackdrop", box.template)
+        assert.equals("NoBackdrop", client.ns.Waymark.backdrop.template)
+        assert.is_nil(shadowOf(box))
+        assert.is_nil(shadowOf(client.ns.RestedXP.shadowFrame))
+        assert.is_false(panel.glass[1]:IsShown())
+    end)
+
+    it("gives everything back when the style goes back to ElvUI's", function()
+        local client = NewClient({ eltruism = true, db = { style = "transparent" } })
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        client:Set("style", "elvui")
+        assert.equals("Transparent", box.template)
+        assert.equals("Transparent", client.rxp.RXPFrame.BottomFrame.template)
+        assert.same({ length = 4, colored = true }, shadowOf(box))
+    end)
+
+    it("is a choice in the options, with the shadow switch and the alpha greyed out", function()
+        local client = NewClient({ eltruism = true })
+        local page = client:LoadOptions()
+        assert.is_string(page.args.style.values.transparent)
+        assert.is_false(page.args.shadow.disabled())
+        client:Set("style", "transparent")
+        assert.is_true(page.args.shadow.disabled())
+        assert.is_true(page.args.alpha.disabled())
+    end)
+end)
+
+describe("the fonts", function()
+    local SM = "Fonts\\SharedMedia\\"
+
+    ---What ElvUI's FontTemplate was last given for a font string.
+    local function template(client, fs)
+        return client.E.texts[fs]
+    end
+
+    it("put the chosen font on the text in a skinned window, at the size the addon gave it", function()
+        local client = NewClient()
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        for _, fs in ipairs({ box.title, box.row.text }) do
+            assert.same({ fontName = "PT Sans Narrow", fontSize = 12, fontStyle = "OUTLINE" }, template(client, fs))
+            assert.equals(SM .. "PT Sans Narrow.ttf", (fs:GetFont()))
+        end
+    end)
+
+    it("come back when the addon sets a font or a font object again", function()
+        local client = NewClient()
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        box.title:SetFont("Fonts\\MORPHEUS.ttf", 16, "")
+        assert.equals(SM .. "PT Sans Narrow.ttf", (box.title:GetFont()))
+        assert.equals(16, template(client, box.title).fontSize)
+        box.title:SetFontObject(GameFontNormal)
+        assert.equals(SM .. "PT Sans Narrow.ttf", (box.title:GetFont()))
+        assert.equals(12, template(client, box.title).fontSize)
+    end)
+
+    it("leave text outside the skinned windows alone", function()
+        local client = NewClient()
+        client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        local other = client.Frame("Frame", "ChatFrame1", UIParent):CreateFontString()
+        other:SetFont("Fonts\\FRIZQT__.TTF", 14, "")
+        assert.equals("Fonts\\FRIZQT__.TTF", (other:GetFont()))
+        assert.is_nil(template(client, other))
+    end)
+
+    it("reach text a window gains later, when it shows again or changes size", function()
+        local client = NewClient()
+        local box = client:LorewardWindow("LorewardFindWindow")
+        local panel = client:WaymarkPanel()
+        client:Tick()
+        local shown = box:CreateFontString(nil, nil, "GameFontNormal")
+        box:Show()
+        assert.is_table(template(client, shown))
+        local line = panel.body:CreateFontString(nil, nil, "GameFontNormal")
+        panel.scripts.OnSizeChanged(panel, 300, 80)
+        assert.is_table(template(client, line))
+        assert.is_table(template(client, panel.body.line))
+    end)
+
+    it("give RestedXP's theme the chosen font, and reach its steps' text", function()
+        local client = NewClient({ rxpTheme = "ElvUI" })
+        assert.equals(SM .. "PT Sans Narrow.ttf", client.rxp.themes.ElvUI.font)
+        client.rxp.SetStep(1)
+        local text = client.rxp.RXPFrame.CurrentStepFrame.framePool[1].text
+        assert.equals("PT Sans Narrow", template(client, text).fontName)
+        local targets = client:RXPTargetFrame()
+        targets.label = targets:CreateFontString(nil, nil, "GameFontNormal")
+        client:Tick()
+        assert.is_table(template(client, targets.label))
+    end)
+
+    it("follow a change of font, outline or shadow at once", function()
+        local client = NewClient({ rxpTheme = "ElvUI" })
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        client:Set("font", "Expressway")
+        assert.equals("Expressway", template(client, box.title).fontName)
+        assert.equals(SM .. "Expressway.ttf", client.rxp.themes.ElvUI.font)
+        client:Set("fontShadow", true)
+        assert.equals("SHADOWOUTLINE", template(client, box.title).fontStyle)
+        client:Set("fontStyle", "NONE")
+        assert.equals("SHADOW", template(client, box.title).fontStyle)
+        client:Set("fontShadow", false)
+        assert.equals("NONE", template(client, box.title).fontStyle)
+        assert.same({}, client.popups)
+    end)
+
+    it("stop with their switch off, which asks for a reload; on again, they reach every window", function()
+        local client = NewClient({ db = { fonts = false }, rxpTheme = "ElvUI" })
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        assert.is_nil(template(client, box.title))
+        assert.equals(client.E.media.normFont, client.rxp.themes.ElvUI.font)
+        client:Set("fonts", true)
+        assert.is_table(template(client, box.title))
+        client:Set("fonts", false)
+        assert.same({ "CONFIG_RL" }, client.popups)
+        box.title:SetFont("Fonts\\MORPHEUS.ttf", 16, "")
+        assert.equals("Fonts\\MORPHEUS.ttf", (box.title:GetFont()))
+    end)
+
+    it(
+        "have a font, an outline without ElvUI's shadow styles, and a shadow switch, greyed out with fonts off",
+        function()
+            local client = NewClient()
+            local args = client:LoadOptions().args
+            assert.equals("toggle", args.fonts.type)
+            assert.equals("LSM30_Font", args.font.dialogControl)
+            assert.is_nil(args.fontStyle.values.SHADOW)
+            assert.is_nil(args.fontStyle.values.SHADOWOUTLINE)
+            assert.equals("Outline", args.fontStyle.values.OUTLINE)
+            assert.equals("toggle", args.fontShadow.type)
+            for _, key in ipairs({ "font", "fontStyle", "fontShadow" }) do
+                assert.is_false(args[key].disabled())
+            end
+            client:Set("fonts", false)
+            assert.is_true(args.font.disabled())
+        end
+    )
+
+    it("can be set through the API, a wrong value ignored", function()
+        local client = NewClient()
+        local api = _G.ElvUI_RXPSkin
+        api:Configure({ fonts = false, font = "Expressway", fontStyle = "NONE", fontShadow = true })
+        local db = client:Db()
+        assert.same({ false, "Expressway", "NONE", true }, { db.fonts, db.font, db.fontStyle, db.fontShadow })
+        api:Configure({ font = 3, fontStyle = "SHADOW", fontShadow = "yes" })
+        assert.same({ "Expressway", "NONE", true }, { db.font, db.fontStyle, db.fontShadow })
     end)
 end)
 

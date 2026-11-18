@@ -101,6 +101,23 @@ function Tests:ColoursOnAFrameWithoutBackdropAreHarmless()
     IsFalse(f:GetBackdrop())
 end
 
+function Tests:FontStringsShareTheMethodsTheFontHookIsOn()
+    local fs = UIParent:CreateFontString()
+    local methods = getmetatable(fs).__index --[[@as table]]
+    IsTrue(isFunction(methods.SetFont) and isFunction(methods.SetFontObject))
+    IsTrue(isFunction(methods.FontTemplate))
+end
+
+function Tests:AWatchedWindowsTextKeepsTheChosenFont()
+    if not ns.db().fonts then return end
+    local f = Hidden("Frame")
+    local fs = f:CreateFontString(nil, "OVERLAY", "GameFontNormal") --[[@as FontString]]
+    ns.Fonts.Watch(f)
+    fs:SetFont("Fonts\\MORPHEUS.ttf", 15, "")
+    AreEqual(E.Libs.LSM:Fetch("font", ns.db().font), (fs:GetFont()))
+    IsTrue(near(select(2, fs:GetFont()), 15))
+end
+
 function Tests:TemplatesLeaveTheMarksWidgetsAreFoundBy()
     local button = Hidden("Button", "UIPanelButtonNoTooltipTemplate")
     Exists(button.Left and button.Middle and button.Right)

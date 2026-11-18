@@ -3,7 +3,8 @@
 -- "keep" mode the owner's backdrop colour stays (RestedXP draws its states with it); in "force"
 -- mode ElvUI's colours win every time (Loreward's parchment). The border is always ElvUI's.
 -- In the translucent style windows get a see-through backdrop at the plugin's alpha and parts
--- nested in a window ("inner") none at all.
+-- nested in a window ("inner") none at all; in the transparent style nothing has a backdrop or a
+-- shadow, only the text and the addons' own accents are left (as Eltruism's transparent chat).
 -- Widgets are found by what their Blizzard template leaves on them, and each is skinned once.
 
 local _, ns = ... ---@type string, ElvUIRXPSkinNamespace
@@ -14,7 +15,7 @@ local Skin = {}
 ns.Skin = Skin
 
 -- The looks the plugin offers.
-Skin.styles = { elvui = "elvui", translucent = "translucent" }
+Skin.styles = { elvui = "elvui", translucent = "translucent", transparent = "transparent" }
 -- ElvUI's template for a frame without backdrop.
 local NONE = "NoBackdrop"
 
@@ -31,11 +32,19 @@ local handled = setmetatable({}, { __mode = "k" })
 local shadowed = setmetatable({}, { __mode = "k" })
 local updateShadow -- with the shadows, below
 
----The backdrop alpha of the translucent style, or nil in ElvUI's own.
+---The backdrop alpha of the current style: the plugin's alpha in the translucent style, 0 in the
+---transparent one, nil in ElvUI's own (the template's alpha).
 ---@return number?
 function Skin.Alpha()
     local db = ns.db()
+    if db.style == Skin.styles.transparent then return 0 end
     return db.style == Skin.styles.translucent and db.alpha or nil
+end
+
+---Whether the current style is the transparent one.
+---@return boolean
+function Skin.Transparent()
+    return ns.db().style == Skin.styles.transparent
 end
 
 ---The background colour of a template: ElvUI's faded one for "Transparent", the frame's own alpha
@@ -67,7 +76,7 @@ end
 local function apply(frame)
     local info = skinned[frame]
     local alpha = Skin.Alpha()
-    info.current = alpha and info.inner and NONE or info.template
+    info.current = (Skin.Transparent() or (alpha and info.inner)) and NONE or info.template
     -- ElvUI's SetTemplate takes this alpha over the template's.
     frame.customBackdropAlpha = not info.inner and alpha or nil
     locked[frame] = true
@@ -206,10 +215,11 @@ end
 
 ---Shows a window's shadow, made the first time as the variant in use makes one (Eltruism's at its
 ---length and in its colour, WindTools' through its own CreateShadow); hides it with the plugin's
----switch off or no variant. A shadow once made stays in its variant's look.
+---switch off, no variant, or in the transparent style, which has no box to cast one. A shadow
+---once made stays in its variant's look.
 ---@param frame table
 updateShadow = function(frame)
-    local variant = ns.db().shadow and Skin.ShadowVariant()
+    local variant = ns.db().shadow and not Skin.Transparent() and Skin.ShadowVariant()
     if not variant then
         if frame.shadow then frame.shadow:Hide() end
         return
@@ -241,6 +251,7 @@ end
 function Skin.Window(frame, template)
     if template then Skin.Backdrop(frame, template, true) end
     Skin.Shadow(frame)
+    ns.Fonts.Watch(frame)
     Skin.Widgets(frame)
     frame:HookScript("OnShow", Skin.Widgets)
 end

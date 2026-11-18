@@ -8,7 +8,7 @@
 ---@class ElvUIGlobal
 ---@field [1] ElvUIEngine
 ---@field [3] table<string, table> private defaults (V)
----@field [4] table<string, table> profile defaults (P)
+---@field [4] {general: {font: string, fontStyle: string}, [string]: table} profile defaults (P)
 
 ---@type ElvUIGlobal
 ElvUI = nil
@@ -34,7 +34,7 @@ ElvUI = nil
 ---@field mult number one screen pixel in UI units
 ---@field db table<string, any> the profile; the plugin's settings under its folder name
 ---@field public private table<string, any> the private settings; install_complete once ElvUI's installer ran
----@field Libs {ACH: LibAceConfigHelper}
+---@field Libs {ACH: LibAceConfigHelper, LSM: LibSharedMedia}
 ---@field Options {args: table<string, table>}
 ---@field NewModule fun(self: ElvUIEngine, name: string, ...: string): ElvUIRXPSkinModule
 ---@field RegisterModule fun(self: ElvUIEngine, name: string)
@@ -59,6 +59,9 @@ ElvUI = nil
 ---@field Select fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, values: table<string, string>, confirm: boolean?, width: string?, get: function?, set: function?, disabled: function?): table
 ---@field Range fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, values: {min: number, max: number, step: number, isPercent: boolean?}, width: string?, get: function?, set: function?, disabled: function?): table
 ---@field Description fun(self: LibAceConfigHelper, name: string, order: number): table
+---@field FontValues table<string, string> ElvUI's font styles by key, "SHADOW..." ones included
+---@field SharedMediaFont fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, width: string?, get: function?, set: function?, disabled: function?): table
+---@field FontFlags fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, width: string?, get: function?, set: function?, disabled: function?): {values: table<string, string>}
 
 ---ElvUI's Toolkit adds these to every frame.
 ---@class Frame
@@ -74,8 +77,12 @@ ElvUI = nil
 ---@field waymark boolean skin Waymark's As Told panel
 ---@field hideArt boolean hide RestedXP's banners
 ---@field shadow boolean Eltruism's or WindTools' shadow round the skinned windows
----@field style string one of Skin.styles: "elvui" or "translucent"
+---@field style string one of Skin.styles: "elvui", "translucent" or "transparent"
 ---@field alpha number the translucent style's backdrop alpha, 0 to 1
+---@field fonts boolean the chosen font on the skinned windows' text
+---@field font string SharedMedia name of that font
+---@field fontStyle string an outline from ElvUI's font styles, not a "SHADOW..." one
+---@field fontShadow boolean a drop shadow behind the text
 
 ---An addon the plugin skins: a module in ns.addons.
 ---@class ElvUIRXPSkinAddon
@@ -184,11 +191,28 @@ WindTools = nil
 ---@field Finish fun()
 ---@field Queue fun(again: boolean?)
 
+---Fonts.lua.
+---@class ElvUIRXPSkinFonts
+---@field Style fun(db: ElvUIRXPSkinSettings): string the style FontTemplate takes
+---@field Sweep fun(frame: table)
+---@field Watch fun(frame: table)
+---@field Update fun()
+
+---SharedMedia, as ElvUI keeps it in E.Libs.
+---@class LibSharedMedia
+---@field Fetch fun(self: LibSharedMedia, mediaType: string, name: string): string
+
+---ElvUI adds this to every font string: a SharedMedia font name, a size, and a style where
+---"SHADOW..." is a shadow.
+---@class FontString
+---@field FontTemplate fun(self: FontString, fontName: string, size: number?, style: string?)
+
 ---Skin.lua.
 ---@class ElvUIRXPSkinSkin
 ---@field Backdrop fun(frame: table, template: string, force: boolean?, inner: boolean?)
----@field styles {elvui: string, translucent: string} the looks the plugin offers
----@field Alpha fun(): number? the translucent style's alpha, nil in ElvUI's own
+---@field styles {elvui: string, translucent: string, transparent: string} the looks the plugin offers
+---@field Alpha fun(): number? the current style's backdrop alpha, nil in ElvUI's own
+---@field Transparent fun(): boolean the transparent style is on
 ---@field Refresh fun()
 ---@field Widgets fun(frame: table)
 ---@field Shadow fun(frame: table)
@@ -223,6 +247,8 @@ PluginInstallFrame = nil
 ---@field InsertOptions fun()
 ---@field Skin ElvUIRXPSkinSkin
 ---@field Install ElvUIRXPSkinInstall
+---@field Fonts ElvUIRXPSkinFonts
+---@field outlines fun(): table<string, string> ElvUI's font styles less the "SHADOW..." ones
 ---@field RestedXP ElvUIRXPSkinRestedXP
 ---@field Loreward ElvUIRXPSkinLoreward
 ---@field Navigator ElvUIRXPSkinNavigator

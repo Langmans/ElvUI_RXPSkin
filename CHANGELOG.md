@@ -11,3 +11,6 @@
 - A translucent style: see-through windows at a chosen alpha, nested parts without backdrop.
 - The guide window's shadow sits on its visible edge instead of 3 pixels outside it.
 - Waymark's As Told panel on ElvUI's backdrop, with its own switch and installer page.
+- The shadow switch works without a reload.
+- A transparent style: no backdrop, border or shadow anywhere, only the text.
+- Fonts: a SharedMedia font, outline and shadow for the text in the skinned windows.
