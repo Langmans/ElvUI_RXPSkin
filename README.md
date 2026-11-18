@@ -3,15 +3,17 @@
 An ElvUI plugin that gives **RestedXP Guides**, **Loreward** and **RestedXP Navigator** ElvUI's look,
 for WoW: Forever.
 
-- **RestedXP Guides**: the guide window, its steps and step list in ElvUI's borders, and an
-  "ElvUI" theme in RestedXP's own theme list, in ElvUI's colours and font. Optionally without
-  RestedXP's banners.
+- **RestedXP Guides**: the guide window, its steps, step list, scroll bar and the Active Targets
+  frame in ElvUI's style, and an "ElvUI" theme in RestedXP's own theme list, in ElvUI's colours and
+  font. Optionally without RestedXP's banners.
 - **Loreward**: its windows and cards in ElvUI's colours and borders instead of parchment, its
   buttons, check boxes, edit boxes and scroll bars in ElvUI's style.
 - **RestedXP Navigator**: its panels in ElvUI's colours, its close buttons and drop-downs in
   ElvUI's style.
 - **Shadows**: with Eltruism or WindTools loaded and that addon's own shadow option on, the skinned
   windows get its shadow.
+- **Two styles**: ElvUI's own, or translucent: see-through windows at an alpha of your choice, and
+  no backdrop or border on the parts inside them (step numbers, list rows, title tabs, edit boxes).
 
 Every addon except ElvUI is optional; a skin only runs for an addon that is loaded.
 
@@ -32,13 +34,14 @@ if skin and not skin:IsInstalled() then
     skin:Configure({
         restedxp = true, loreward = true, navigator = true,
         hideArt = true, shadow = true,
+        style = "translucent", alpha = 0.5, -- or style = "elvui"
         rxpTheme = true, -- put RestedXP Guides on the ElvUI theme
     })
 end
 ```
 
-`Configure` takes booleans by the option keys and ignores the rest; calling it counts as the
-installer having run. `ShowInstaller()` queues the installer again.
+`Configure` takes booleans by the option keys, `style` and `alpha` (0 to 1), and ignores the rest
+or a value out of range; calling it counts as the installer having run. `ShowInstaller()` queues the installer again.
 
 ## How it works
 
@@ -50,6 +53,13 @@ installer having run. `ShowInstaller()` queues the installer again.
 - **Backdrops** (`Skin.lua`): the addons set their own backdrops again on every redraw. A skinned
   frame keeps a hook on `SetBackdrop` that puts ElvUI's template back. RestedXP's frames keep their
   own background colour, which marks step states; Loreward's get ElvUI's colours forced.
+- **Translucent**: a skinned frame is a window or "inner" (nested in one). In the translucent
+  style windows get the plugin's alpha through ElvUI's `customBackdropAlpha`, inner parts the
+  `NoBackdrop` template; switching style re-applies every skinned frame without a reload.
+- **Scroll bar**: RestedXP's `RXPFrame.UpdateScrollBar` only puts its theme's art on the step
+  list's bar, on every render; after ElvUI's `HandleScrollBar` it is replaced by an empty function.
+- **Guide window shadow**: `RXPFrame` is 3 pixels wider than the list and footer it shows, so the
+  shadow goes round a frame spanning just those two.
 - **Loreward and Navigator** have no API for this. Their windows are named frames built on first
   use; a ticker looks for them twice a second and stops once all are found. Widgets are recognised
   by what their Blizzard template leaves on them (`Left`/`Middle`/`Right`, `Text`, the close

@@ -56,6 +56,8 @@ ElvUI = nil
 ---@field Group fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, childGroups: string?, get: function?, set: function?): {args: table<string, table>}
 ---@field Toggle fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, tristate: boolean?, confirm: boolean?, width: string?, get: function?, set: function?, disabled: function?): table
 ---@field Execute fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, func: function): table
+---@field Select fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, values: table<string, string>, confirm: boolean?, width: string?, get: function?, set: function?, disabled: function?): table
+---@field Range fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, values: {min: number, max: number, step: number, isPercent: boolean?}, width: string?, get: function?, set: function?, disabled: function?): table
 ---@field Description fun(self: LibAceConfigHelper, name: string, order: number): table
 
 ---ElvUI's Toolkit adds these to every frame.
@@ -71,6 +73,8 @@ ElvUI = nil
 ---@field navigator boolean skin RestedXP Navigator's windows
 ---@field hideArt boolean hide RestedXP's banners
 ---@field shadow boolean Eltruism's or WindTools' shadow round the skinned windows
+---@field style string one of Skin.styles: "elvui" or "translucent"
+---@field alpha number the translucent style's backdrop alpha, 0 to 1
 
 ---An addon the plugin skins: a module in ns.addons.
 ---@class ElvUIRXPSkinAddon
@@ -112,7 +116,9 @@ ElvUI = nil
 ---@field Footer Frame|{bg: Texture}
 ---@field CurrentStepFrame {framePool: RXPGuidesStepFrame[]}
 ---@field ScrollChild {framePool: Frame[]}
+---@field ScrollFrame {ScrollBar: Slider} the step list's UIPanelScrollFrameTemplate
 ---@field UpdateVisuals fun(self: RXPGuidesFrame)
+---@field UpdateScrollBar fun() puts the theme's art on the scroll bar
 
 ---RestedXP Guides' AceAddon object, the parts the plugin touches.
 ---@class RXPGuidesAddon
@@ -139,6 +145,7 @@ RXPNavigator = nil
 ---@field HandleCheckBox fun(self: ElvUISkins, checkbox: table)
 ---@field HandleSliderFrame fun(self: ElvUISkins, slider: table)
 ---@field HandleDropDownBox fun(self: ElvUISkins, dropdown: table)
+---@field HandleScrollBar fun(self: ElvUISkins, scrollBar: table)
 ---@field AddCallbackForAddon fun(self: ElvUISkins, addonName: string, name: string, func: fun())
 
 ---ElvUI's PluginInstaller (General\PluginInstaller.lua).
@@ -178,7 +185,9 @@ WindTools = nil
 
 ---Skin.lua.
 ---@class ElvUIRXPSkinSkin
----@field Backdrop fun(frame: table, template: string, force: boolean?)
+---@field Backdrop fun(frame: table, template: string, force: boolean?, inner: boolean?)
+---@field styles {elvui: string, translucent: string} the looks the plugin offers
+---@field Alpha fun(): number? the translucent style's alpha, nil in ElvUI's own
 ---@field Refresh fun()
 ---@field Widgets fun(frame: table)
 ---@field Shadow fun(frame: table)

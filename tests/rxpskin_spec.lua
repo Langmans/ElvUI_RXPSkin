@@ -27,7 +27,16 @@ describe("the plugin", function()
 
     it("skins all three addons by default and hides RestedXP's banners", function()
         local db = NewClient():Db()
-        assert.same({ restedxp = true, loreward = true, navigator = true, hideArt = true, shadow = true }, db)
+        local expected = {
+            restedxp = true,
+            loreward = true,
+            navigator = true,
+            hideArt = true,
+            shadow = true,
+            style = "elvui",
+            alpha = 0.5,
+        }
+        assert.same(expected, db)
     end)
 end)
 
@@ -120,8 +129,12 @@ describe("the API for other plugins", function()
         local api = _G.ElvUI_RXPSkin
         assert.is_false(api:IsInstalled())
         api:Configure({ loreward = false, hideArt = false, navigator = "no", shadow = false, bogus = true })
-        local expected = { restedxp = true, loreward = false, navigator = true, hideArt = false, shadow = false }
-        assert.same(expected, client:Db())
+        local db = client:Db()
+        assert.same(
+            { true, false, true, false, false },
+            { db.restedxp, db.loreward, db.navigator, db.hideArt, db.shadow }
+        )
+        assert.is_nil(db.bogus)
         assert.is_true(api:IsInstalled())
         client:RunDelays()
         assert.equals(0, #client.PI.queue)
@@ -264,6 +277,29 @@ describe("RestedXP Guides", function()
         assert.same(client.rxp.colors.bottomFrameBG, list.backdropColor)
     end)
 
+    it("skins the step list's scroll bar, and RestedXP no longer puts its own art back", function()
+        local client = NewClient()
+        local bar = client.rxp.RXPFrame.ScrollFrame.ScrollBar
+        assert.equals("ScrollBar", bar.handled)
+        local themed = bar.themed
+        client.rxp.RenderFrame()
+        assert.equals(themed, bar.themed)
+    end)
+
+    it("skins the Active Targets frame and its title once RestedXP builds them", function()
+        local client = NewClient({ eltruism = true })
+        local f = client:RXPTargetFrame()
+        assert.is_nil(f.template)
+        client:Tick()
+        assert.equals("Transparent", f.template)
+        assert.equals("Transparent", f.title.template)
+        assert.same(client.rxp.colors.background, f.backdropColor)
+        assert.is_table(f.shadow)
+        -- RestedXP renders it again: ElvUI's border stays.
+        f:SetBackdrop({ edgeFile = "rxp-borders" })
+        assert.equals(client.E.media.blankTex, f.backdrop.edgeFile)
+    end)
+
     it("hides the banners behind the guide name and footer, unless told not to", function()
         local client = NewClient()
         local frame = client.rxp.RXPFrame
@@ -282,6 +318,10 @@ describe("RestedXP Guides", function()
         client.rxp.SetStep(1)
         assert.is_nil(client.rxp.RXPFrame.CurrentStepFrame.framePool[1].template)
         assert.is_true(client.rxp.RXPFrame.GuideName.bg:IsShown())
+        assert.is_nil(client.rxp.RXPFrame.ScrollFrame.ScrollBar.handled)
+        local f = client:RXPTargetFrame()
+        client:Tick()
+        assert.is_nil(f.template)
     end)
 
     it("does nothing without RestedXP", function()
@@ -333,7 +373,7 @@ describe("Loreward", function()
     end)
 
     it("stops looking once every window it knows is there", function()
-        local client = NewClient({ navigator = false })
+        local client = NewClient({ rxp = false })
         assert.equals(1, client:LiveTimers())
         for _, windowName in ipairs(client.ns.Loreward.WINDOWS) do
             client:LorewardWindow(windowName)
@@ -343,9 +383,74 @@ describe("Loreward", function()
     end)
 
     it("is left alone with its switch off, or without Loreward", function()
-        assert.equals(0, NewClient({ loreward = false, navigator = false }):LiveTimers())
-        local client = NewClient({ db = { loreward = false }, navigator = false })
+        -- Without RestedXP too, whose skin looks for its Active Targets frame.
+        assert.equals(0, NewClient({ loreward = false, rxp = false }):LiveTimers())
+        local client = NewClient({ db = { loreward = false }, rxp = false })
         assert.equals(0, client:LiveTimers())
+    end)
+end)
+
+describe("the translucent style", function()
+    local TRANSLUCENT = { style = "translucent", alpha = 0.4 }
+
+    it("gives windows a see-through backdrop and nested parts none", function()
+        local client = NewClient({ db = TRANSLUCENT, rxpTheme = "ElvUI" })
+        local rxp = client.rxp
+        rxp.SetStep(1)
+        rxp:LoadGuide(1)
+        local step = rxp.RXPFrame.CurrentStepFrame.framePool[1]
+        assert.equals("Transparent", step.template)
+        assert.equals(0.4, step.customBackdropAlpha)
+        assert.equals("NoBackdrop", step.number.template)
+        assert.equals("NoBackdrop", rxp.RXPFrame.ScrollChild.framePool[1].template)
+        assert.equals(0.4, rxp.themes.ElvUI.background[4])
+        local box = client:LorewardWindow("LorewardFindWindow")
+        client:Tick()
+        assert.equals(0.4, box.backdropColor[4])
+        assert.equals("NoBackdrop", box.edit.template)
+        -- Loreward colours its edit box: nothing comes back.
+        box.edit:SetBackdropColor(1, 1, 1, 1)
+        assert.equals("NoBackdrop", box.edit.template)
+        local targets = client:RXPTargetFrame()
+        client:Tick()
+        assert.equals("NoBackdrop", targets.title.template)
+    end)
+
+    it("switches back and forth without a reload, and follows its alpha", function()
+        local client = NewClient()
+        client.rxp:LoadGuide(1)
+        local row = client.rxp.RXPFrame.ScrollChild.framePool[1]
+        local bottom = client.rxp.RXPFrame.BottomFrame
+        client:Set("style", "translucent")
+        assert.equals("NoBackdrop", row.template)
+        assert.equals(0.5, bottom.customBackdropAlpha)
+        client:Set("alpha", 0.3)
+        assert.equals(0.3, bottom.customBackdropAlpha)
+        client:Set("style", "elvui")
+        assert.equals("Default", row.template)
+        assert.is_nil(bottom.customBackdropAlpha)
+        assert.same({}, client.popups)
+    end)
+
+    it("has a style choice, and an alpha slider greyed out in ElvUI's style", function()
+        local client = NewClient()
+        local page = client:LoadOptions()
+        assert.equals("select", page.args.style.type)
+        assert.is_table(page.args.style.values.elvui and page.args.style.values.translucent and page.args.style.values)
+        assert.equals("range", page.args.alpha.type)
+        assert.is_true(page.args.alpha.disabled())
+        client:Set("style", "translucent")
+        assert.is_false(page.args.alpha.disabled())
+    end)
+
+    it("can be set through the API, a wrong value ignored", function()
+        local client = NewClient()
+        _G.ElvUI_RXPSkin:Configure({ style = "translucent", alpha = 0.25 })
+        assert.equals("translucent", client:Db().style)
+        assert.equals(0.25, client:Db().alpha)
+        _G.ElvUI_RXPSkin:Configure({ style = "glass", alpha = 2 })
+        assert.equals("translucent", client:Db().style)
+        assert.equals(0.25, client:Db().alpha)
     end)
 end)
 
@@ -355,9 +460,20 @@ describe("Eltruism", function()
         local loreward = client:LorewardWindow("LorewardPlanWindow")
         local navigator = client:NavigatorWindow("RXPNavigatorNews")
         client:Tick()
-        for _, frame in ipairs({ client.rxp.RXPFrame, loreward, navigator }) do
+        for _, frame in ipairs({ client.ns.RestedXP.shadowFrame, loreward, navigator }) do
             assert.same({ length = 4, colored = true }, frame.shadow)
         end
+    end)
+
+    it("puts the guide window's shadow round what shows, not round RestedXP's wider frame", function()
+        local client = NewClient({ eltruism = true })
+        local frame = client.rxp.RXPFrame
+        local holder = client.ns.RestedXP.shadowFrame
+        assert.is_nil(frame.shadow)
+        assert.equals(frame, holder.parent)
+        assert.same({ "TOPLEFT", frame.BottomFrame, "TOPLEFT" }, holder.points[1])
+        assert.same({ "BOTTOMRIGHT", frame.Footer, "BOTTOMRIGHT" }, holder.points[2])
+        assert.is_true(holder.level < frame.BottomFrame.level)
     end)
 
     it("leaves the shadows out with Eltruism's shadows off, or without Eltruism", function()
@@ -365,7 +481,7 @@ describe("Eltruism", function()
             local client = NewClient(opts)
             local box = client:LorewardWindow("LorewardPlanWindow")
             client:Tick()
-            assert.is_nil(client.rxp.RXPFrame.shadow)
+            assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
             assert.is_nil(box.shadow)
         end
     end)
@@ -376,23 +492,23 @@ describe("WindTools", function()
         local client = NewClient({ windtools = true })
         local box = client:LorewardWindow("LorewardPlanWindow")
         client:Tick()
-        assert.same({ wind = true }, client.rxp.RXPFrame.shadow)
+        assert.same({ wind = true }, client.ns.RestedXP.shadowFrame.shadow)
         assert.same({ wind = true }, box.shadow)
     end)
 
     it("leaves them out with its skins off", function()
         local client = NewClient({ windtools = false })
-        assert.is_nil(client.rxp.RXPFrame.shadow)
+        assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
     end)
 
     it("gives way to Eltruism's shadow, so a window has one", function()
         local client = NewClient({ windtools = true, eltruism = true })
-        assert.same({ length = 4, colored = true }, client.rxp.RXPFrame.shadow)
+        assert.same({ length = 4, colored = true }, client.ns.RestedXP.shadowFrame.shadow)
     end)
 
     it("leaves them out with its shadow option off, its skins on", function()
         local client = NewClient({ windtools = true, windtoolsShadow = false })
-        assert.is_nil(client.rxp.RXPFrame.shadow)
+        assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
     end)
 end)
 
@@ -415,7 +531,7 @@ describe("the shadow variant", function()
 
     it("is none with the plugin's own shadow switch off", function()
         local client = NewClient({ eltruism = true, db = { shadow = false } })
-        assert.is_nil(client.rxp.RXPFrame.shadow)
+        assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
         local box = client:LorewardWindow("LorewardPlanWindow")
         client:Tick()
         assert.is_nil(box.shadow)

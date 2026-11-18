@@ -11,7 +11,15 @@ ns.addons = {}
 -- The switches other plugins may set through the API, with the option page's order.
 ns.SWITCHES = { "restedxp", "loreward", "navigator", "hideArt", "shadow" }
 
-P[NAME] = { restedxp = true, loreward = true, navigator = true, hideArt = true, shadow = true }
+P[NAME] = {
+    restedxp = true,
+    loreward = true,
+    navigator = true,
+    hideArt = true,
+    shadow = true,
+    style = "elvui",
+    alpha = 0.5,
+}
 V[NAME] = { installed = false }
 
 local M = E:NewModule(NAME, "AceHook-3.0")
@@ -76,8 +84,10 @@ local API = {}
 _G[NAME] = API
 
 ---Sets the plugin up as its installer would, and counts as the installer having run.
----`settings` holds booleans by the option keys (restedxp, loreward, navigator, hideArt, shadow);
----others are ignored. `rxpTheme = true` also puts RestedXP Guides on the ElvUI theme.
+---`settings` holds booleans by the option keys (restedxp, loreward, navigator, hideArt, shadow),
+---`style` ("elvui" or "translucent") and `alpha` (0 to 1, the translucent backdrop's); anything
+---else, or a value out of range, is ignored. `rxpTheme = true` also puts RestedXP Guides on the
+---ElvUI theme.
 ---@param settings table?
 function API:Configure(settings)
     settings = settings or {}
@@ -85,6 +95,9 @@ function API:Configure(settings)
     for _, key in ipairs(ns.SWITCHES) do
         if type(settings[key]) == "boolean" then db[key] = settings[key] end
     end
+    if ns.Skin.styles[settings.style] then db.style = settings.style end
+    local alpha = type(settings.alpha) == "number" and tonumber(settings.alpha) or nil
+    if alpha and alpha >= 0 and alpha <= 1 then db.alpha = alpha end
     ns.Update()
     if settings.rxpTheme then ns.RestedXP.UseTheme() end
     ns.Install.Finish()

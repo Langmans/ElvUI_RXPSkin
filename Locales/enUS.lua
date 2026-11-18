@@ -20,6 +20,13 @@ L.shadow_TITLE = "Shadows"
 L.shadow_DESC =
     "Eltruism's or WindTools' shadow round the skinned windows, when that addon's own shadow option is on. Greyed out without either."
 
+L.STYLE = "Style"
+L.STYLE_DESC = "Translucent: see-through windows, and no backdrop or border on the parts inside them."
+L.STYLE_ELVUI = "ElvUI"
+L.STYLE_TRANSLUCENT = "Translucent"
+L.ALPHA = "Translucent backdrop"
+L.ALPHA_DESC = "How solid the windows' backdrop is in the translucent style."
+
 L.YES = "Skin it"
 L.NO = "Leave it"
 L.INSTALL_TITLE = "RXP Skin Installation"

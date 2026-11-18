@@ -30,9 +30,16 @@ local function copy(t)
     return c
 end
 
+-- The globals named frames of earlier clients left, cleared by the next one.
+local namedFrames = {}
+
 ---@param opts TestClientOptions?
 function NewClient(opts)
     opts = opts or {}
+    for _, frameName in ipairs(namedFrames) do
+        _G[frameName] = nil
+    end
+    namedFrames = {}
     local name = opts.name or "ElvUI_RXPSkin"
     local client = { modules = {}, ns = {}, NAME = name, timers = {}, delays = {}, popups = {} }
 
@@ -129,9 +136,23 @@ function NewClient(opts)
     ---@return table
     local function Frame(kind, frameName, parent, template)
         local f = { kind = kind or "Frame", name = frameName, children = {}, regions = {}, scripts = {} }
-        f.shown = true
+        f.shown, f.parent, f.points = true, parent, {}
+        -- A child sits one level above its parent, as the client stacks them.
+        f.level = parent and parent.level and parent.level + 1 or 1
+        function f:SetPoint(point, relativeTo, relativePoint)
+            self.points[#self.points + 1] = { point, relativeTo, relativePoint }
+        end
+        function f:GetFrameLevel()
+            return self.level
+        end
+        function f:SetFrameLevel(level)
+            self.level = level
+        end
         if parent then parent.children[#parent.children + 1] = f end
-        if frameName then _G[frameName] = f end
+        if frameName then
+            _G[frameName] = f
+            namedFrames[#namedFrames + 1] = frameName
+        end
         function f:GetName()
             return self.name
         end
@@ -250,6 +271,35 @@ function NewClient(opts)
             disabled = disabled,
         }
     end
+    function ACH:Select(selectName, desc, order, values, _, width, get, set, disabled)
+        return {
+            type = "select",
+            name = selectName,
+            desc = desc,
+            order = order,
+            values = values,
+            width = width,
+            get = get,
+            set = set,
+            disabled = disabled,
+        }
+    end
+    function ACH:Range(rangeName, desc, order, values, width, get, set, disabled)
+        return {
+            type = "range",
+            name = rangeName,
+            desc = desc,
+            order = order,
+            min = values.min,
+            max = values.max,
+            step = values.step,
+            isPercent = values.isPercent,
+            width = width,
+            get = get,
+            set = set,
+            disabled = disabled,
+        }
+    end
     function ACH:Execute(execName, desc, order, func)
         return { type = "execute", name = execName, desc = desc, order = order, func = func }
     end
@@ -306,15 +356,21 @@ function NewClient(opts)
     E.Options = not opts.noOptions and { args = {} } or nil
     client.E = E
 
-    ---Toolkit.lua's SetTemplate: ElvUI's blank backdrop, its colours (the faded one for
-    ---"Transparent"), and the frame registered for ElvUI's colour updates unless told not to.
+    ---Toolkit.lua's SetTemplate: ElvUI's blank backdrop (none for "NoBackdrop"), its colours (the
+    ---faded one for "Transparent", the frame's customBackdropAlpha over the alpha), the border
+    ---colour in any case, and the frame registered for ElvUI's colour updates unless told not to.
     function E:SetTemplate(frame, template, _, ignoreUpdates)
         frame.template = template or "Default"
         frame.ignoreUpdates = ignoreUpdates
         if not frame.SetBackdrop then client.Mixin(frame) end
-        frame:SetBackdrop({ edgeFile = self.media.blankTex, bgFile = self.media.blankTex, edgeSize = 1 })
-        local c = template == "Transparent" and self.media.backdropfadecolor or self.media.backdropcolor
-        frame:SetBackdropColor(c.r, c.g, c.b, template == "Transparent" and c.a or 1)
+        if template == "NoBackdrop" then
+            frame:SetBackdrop(nil)
+        else
+            frame:SetBackdrop({ edgeFile = self.media.blankTex, bgFile = self.media.blankTex, edgeSize = 1 })
+            local c = template == "Transparent" and self.media.backdropfadecolor or self.media.backdropcolor
+            local a = frame.customBackdropAlpha or (template == "Transparent" and c.a) or 1
+            frame:SetBackdropColor(c.r, c.g, c.b, a)
+        end
         local b = self.media.bordercolor
         frame:SetBackdropBorderColor(b.r, b.g, b.b, 1)
         if not ignoreUpdates then self.frames[frame] = true end
@@ -338,7 +394,7 @@ function NewClient(opts)
 
     -- The Skins module: each Handle* marks what it was given.
     local S = { callbacks = {} }
-    for _, fn in ipairs({ "Button", "CheckBox", "CloseButton", "EditBox", "SliderFrame", "DropDownBox" }) do
+    for _, fn in ipairs({ "Button", "CheckBox", "CloseButton", "EditBox", "SliderFrame", "DropDownBox", "ScrollBar" }) do
         S["Handle" .. fn] = function(_, frame)
             frame.handled = fn
         end
@@ -581,6 +637,15 @@ function LoadRXPForClient(client, opts)
     RXPFrame.CurrentStepFrame.framePool = {}
     RXPFrame.ScrollChild = Frame("Frame", "RXPFrame_steps", RXPFrame.BottomFrame)
     RXPFrame.ScrollChild.framePool = {}
+    -- The step list's scroll frame (UIPanelScrollFrameTemplate); UpdateScrollBar puts the theme's
+    -- art on its bar, called through the table on every render.
+    RXPFrame.ScrollFrame = Frame("ScrollFrame", "RXPFrameScrollFrame", RXPFrame.BottomFrame)
+    RXPFrame.ScrollFrame.ScrollBar = Frame("Slider", nil, RXPFrame.ScrollFrame)
+    RXPFrame.ScrollFrame.ScrollBar.themed = 0
+    function RXPFrame.UpdateScrollBar()
+        local bar = RXPFrame.ScrollFrame.ScrollBar
+        bar.themed = bar.themed + 1
+    end
     rxp.RXPFrame = RXPFrame
     local edge = { bgFile = "Interface/BUTTONS/WHITE8X8", edgeFile = "rxp-borders", edgeSize = 8 }
     function RXPFrame:UpdateVisuals()
@@ -592,6 +657,18 @@ function LoadRXPForClient(client, opts)
         end
         self.GuideName.bg:SetTexture(rxp.activeTheme.texturePath .. "rxp-banner")
         self.Footer.bg:SetTexture(rxp.activeTheme.texturePath .. "rxp-banner")
+        RXPFrame.UpdateScrollBar()
+    end
+    ---Targeting.lua's CreateTargetFrame: the Active Targets frame and its title tab, built on first
+    ---use, each with RestedXP's border and the theme's background.
+    function client:RXPTargetFrame()
+        local f = Frame("Frame", "RXPTargetFrame", UIParent, "BackdropTemplate")
+        f.title = Frame("Frame", "RXPTargetFrame_title", f, "BackdropTemplate")
+        for _, part in ipairs({ f, f.title }) do
+            part:SetBackdrop(edge)
+            part:SetBackdropColor(unpack(rxp.colors.background))
+        end
+        return f
     end
     function rxp.RenderFrame()
         rxp:LoadActiveTheme()

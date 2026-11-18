@@ -1,23 +1,23 @@
--- The plugin's page in ElvUI's options (/ec > RXP Skin): a switch per addon and one for RestedXP's
--- banners, read and written by key in the profile. Switching a skin off asks for a reload, which
--- is what takes it off; switching one on skins at once.
+-- The plugin's page in ElvUI's options (/ec > RXP Skin): a switch per addon, RestedXP's banners,
+-- the shadows, and the style with its alpha, read and written by key in the profile. Switching a
+-- skin off asks for a reload, which is what takes it off; everything else applies at once.
 
 local NAME, ns = ... ---@type string, ElvUIRXPSkinNamespace
 local E = ElvUI[1]
 local L = LibStub("AceLocale-3.0"):GetLocale(NAME)
 
 ---@param info string[]
----@return boolean
+---@return boolean|string|number
 local function get(info)
-    return ns.db()[info[#info]] --[[@as boolean]]
+    return ns.db()[info[#info]] --[[@as boolean|string|number]]
 end
 
 ---@param info string[]
----@param value boolean
+---@param value boolean|string|number
 local function set(info, value)
     local key = info[#info]
     ns.db()[key] = value
-    if not value and key ~= "hideArt" then E:StaticPopup_Show("CONFIG_RL") end
+    if value == false and key ~= "hideArt" then E:StaticPopup_Show("CONFIG_RL") end
     ns.Update()
 end
 
@@ -32,6 +32,12 @@ local function noShadowAddon()
     return not ns.Skin.ShadowAddonLoaded()
 end
 
+---The alpha slider does something only in the translucent style.
+---@return boolean
+local function notTranslucent()
+    return ns.db().style ~= ns.Skin.styles.translucent
+end
+
 ---LibElvUIPlugin calls this once ElvUI's options are loaded.
 function ns.InsertOptions()
     local ACH = E.Libs.ACH
@@ -43,6 +49,10 @@ function ns.InsertOptions()
     end
     args.hideArt.disabled = rxpOff
     args.shadow.disabled = noShadowAddon
+    local styles = { [ns.Skin.styles.elvui] = L.STYLE_ELVUI, [ns.Skin.styles.translucent] = L.STYLE_TRANSLUCENT }
+    args.style = ACH:Select(L.STYLE, L.STYLE_DESC, 6, styles)
+    local range = { min = 0, max = 1, step = 0.05, isPercent = true }
+    args.alpha = ACH:Range(L.ALPHA, L.ALPHA_DESC, 7, range, nil, nil, nil, notTranslucent)
     args.install = ACH:Execute(L.INSTALL_AGAIN, nil, 10, function()
         ns.Install.Queue(true)
     end)

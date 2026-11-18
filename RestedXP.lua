@@ -3,16 +3,21 @@
 -- This adds an "ElvUI" theme whose colours are ElvUI's, refilled in place when ElvUI's media
 -- change. A saved theme RestedXP does not know falls back to its default, so the name in its
 -- profile is harmless when this plugin is off.
--- The v1 window's frames set RestedXP's own border texture on every redraw; Skin.Backdrop puts
--- ElvUI's template back and keeps RestedXP's colour, which marks the step states.
+-- The v1 window's frames and the Active Targets frame set RestedXP's own border texture on every
+-- redraw; Skin.Backdrop puts ElvUI's template back and keeps RestedXP's colour, which marks the
+-- step states. The step list's scroll bar is ElvUI's.
 
 local _, ns = ... ---@type string, ElvUIRXPSkinNamespace
 local E = ElvUI[1]
 local Skin = ns.Skin
 
 ---@class ElvUIRXPSkinRestedXP: ElvUIRXPSkinAddon
+---@field shadowFrame? Frame the frame the guide window's shadow goes round
 local R = { ADDON = "RXPGuides", key = "restedxp", THEME = "ElvUI" }
 ns.RestedXP = R
+-- RestedXP's frames built on first use (Targeting.lua).
+R.TARGET_FRAMES = { "RXPTargetFrame" }
+local S = E:GetModule("Skins") ---@type ElvUISkins
 
 -- RestedXP's addon object, from Load on; nil without RestedXP.
 local rxp ---@type RXPGuidesAddon
@@ -42,7 +47,7 @@ end
 ---The theme's values from ElvUI's media.
 local function color()
     local m = E.media
-    fill(theme.background, m.backdropfadecolor)
+    fill(theme.background, m.backdropfadecolor, Skin.Alpha())
     fill(theme.bottomFrameBG, m.backdropcolor)
     fill(theme.bottomFrameHighlight, m.rgbvaluecolor, 0.5)
     fill(theme.mapPins, m.rgbvaluecolor)
@@ -80,15 +85,32 @@ end
 local function skinSteps()
     for _, step in ipairs(rxp.RXPFrame.CurrentStepFrame.framePool) do
         Skin.Backdrop(step, "Transparent")
-        Skin.Backdrop(step.number, "Transparent")
+        Skin.Backdrop(step.number, "Transparent", false, true)
     end
 end
 
----The step list below them, built by LoadGuide.
+---The step list below them, built by LoadGuide: rows inside the list's window.
 local function skinList()
     for _, row in ipairs(rxp.RXPFrame.ScrollChild.framePool) do
-        Skin.Backdrop(row, "Default")
+        Skin.Backdrop(row, "Default", false, true)
     end
+end
+
+---The step list's scroll bar in ElvUI's style. RestedXP's UpdateScrollBar does nothing but put
+---the theme's arrows and knob on it, on every render, through the RXPFrame table; it is replaced
+---so ElvUI's stay.
+local function skinScrollBar()
+    S:HandleScrollBar(rxp.RXPFrame.ScrollFrame.ScrollBar)
+    rxp.RXPFrame.UpdateScrollBar = function() end
+end
+
+---The Active Targets frame and its title tab, built on first use; RestedXP sets both backdrops
+---again on every render, in the theme's colour.
+---@param frame table
+local function skinTargets(frame)
+    Skin.Backdrop(frame, "Transparent")
+    Skin.Backdrop(frame.title, "Transparent", false, true)
+    Skin.Shadow(frame)
 end
 
 function R:Load()
@@ -101,12 +123,21 @@ function R:Load()
     for _, key in ipairs({ "BottomFrame", "GuideName", "Footer" }) do
         Skin.Backdrop(frame[key], "Transparent")
     end
-    Skin.Shadow(frame)
+    -- RXPFrame is 3 pixels wider on each side than its step list and footer, so a shadow round it
+    -- shows as a second edge beside the list; this frame covers just the two, under them.
+    local holder = CreateFrame("Frame", nil, frame)
+    holder:SetPoint("TOPLEFT", frame.BottomFrame, "TOPLEFT")
+    holder:SetPoint("BOTTOMRIGHT", frame.Footer, "BOTTOMRIGHT")
+    holder:SetFrameLevel(math.max(frame.BottomFrame:GetFrameLevel() - 1, 0))
+    R.shadowFrame = holder
+    Skin.Shadow(holder)
     hooksecurefunc(frame, "UpdateVisuals", banners)
     hooksecurefunc(rxp, "SetStep", skinSteps)
     hooksecurefunc(rxp, "LoadGuide", skinList)
     skinSteps()
     skinList()
+    skinScrollBar()
+    Skin.Watch(R.TARGET_FRAMES, skinTargets)
     banners()
     -- RestedXP read its saved theme before this one existed.
     if active() then rxp.RenderFrame() end

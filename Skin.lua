@@ -2,6 +2,8 @@
 -- redraw, so a skinned frame keeps a hook on SetBackdrop that puts ElvUI's template back. In
 -- "keep" mode the owner's backdrop colour stays (RestedXP draws its states with it); in "force"
 -- mode ElvUI's colours win every time (Loreward's parchment). The border is always ElvUI's.
+-- In the translucent style windows get a see-through backdrop at the plugin's alpha and parts
+-- nested in a window ("inner") none at all.
 -- Widgets are found by what their Blizzard template leaves on them, and each is skinned once.
 
 local _, ns = ... ---@type string, ElvUIRXPSkinNamespace
@@ -11,20 +13,35 @@ local S = E:GetModule("Skins") ---@type ElvUISkins
 local Skin = {}
 ns.Skin = Skin
 
--- Skinned frames, each with its template and whether ElvUI's colours are forced. Weak keys.
----@type table<table, { template: string, force: boolean }>
+-- The looks the plugin offers.
+Skin.styles = { elvui = "elvui", translucent = "translucent" }
+-- ElvUI's template for a frame without backdrop.
+local NONE = "NoBackdrop"
+
+-- Skinned frames, each with its template, whether ElvUI's colours are forced, whether it is nested
+-- in a window, and the template it has now. Weak keys.
+---@type table<table, { template: string, force: boolean, inner: boolean, current: string }>
 local skinned = setmetatable({}, { __mode = "k" })
 -- Frames being skinned right now, whose own hooks must not run.
 local locked = setmetatable({}, { __mode = "k" })
 -- Widgets already handed to ElvUI's Skins.
 local handled = setmetatable({}, { __mode = "k" })
 
----The background colour of a template: ElvUI's faded one for "Transparent".
+---The backdrop alpha of the translucent style, or nil in ElvUI's own.
+---@return number?
+function Skin.Alpha()
+    local db = ns.db()
+    return db.style == Skin.styles.translucent and db.alpha or nil
+end
+
+---The background colour of a template: ElvUI's faded one for "Transparent", the frame's own alpha
+---(the translucent style's) over the template's.
+---@param frame table
 ---@param template string
 ---@return number, number, number, number
-local function templateColor(template)
+local function templateColor(frame, template)
     local c = template == "Transparent" and E.media.backdropfadecolor or E.media.backdropcolor
-    return c.r, c.g, c.b, template == "Transparent" and c.a or 1
+    return c.r, c.g, c.b, frame.customBackdropAlpha or (template == "Transparent" and c.a) or 1
 end
 
 ---Puts ElvUI's template on a keep-mode frame, then the colour it had back. The frame stays out
@@ -37,18 +54,23 @@ end
 ---@param a number
 local function keepColor(frame, template, r, g, b, a)
     frame:SetTemplate(template, nil, true)
-    if r then frame:SetBackdropColor(r, g, b, a) end
+    if r and template ~= NONE then frame:SetBackdropColor(r, g, b, a) end
 end
 
----Puts ElvUI's template on a skinned frame; in keep mode its colour from before comes back.
+---Puts ElvUI's template on a skinned frame, in the current style; in keep mode its colour from
+---before comes back.
 ---@param frame table
 local function apply(frame)
     local info = skinned[frame]
+    local alpha = Skin.Alpha()
+    info.current = alpha and info.inner and NONE or info.template
+    -- ElvUI's SetTemplate takes this alpha over the template's.
+    frame.customBackdropAlpha = not info.inner and alpha or nil
     locked[frame] = true
     if info.force or not frame.GetBackdropColor then
-        frame:SetTemplate(info.template)
+        frame:SetTemplate(info.current)
     else
-        keepColor(frame, info.template, frame:GetBackdropColor())
+        keepColor(frame, info.current, frame:GetBackdropColor())
     end
     locked[frame] = nil
 end
@@ -60,9 +82,10 @@ end
 
 ---@param frame table
 local function onBackdropColor(frame)
-    if locked[frame] then return end
+    local current = skinned[frame].current
+    if locked[frame] or current == NONE then return end
     locked[frame] = true
-    frame:SetBackdropColor(templateColor(skinned[frame].template))
+    frame:SetBackdropColor(templateColor(frame, current))
     locked[frame] = nil
 end
 
@@ -79,16 +102,17 @@ end
 ---@param frame table
 ---@param template string "Default" or "Transparent"
 ---@param force boolean? ElvUI's background colour over the owner's
-function Skin.Backdrop(frame, template, force)
+---@param inner boolean? nested in a window: no backdrop in the translucent style
+function Skin.Backdrop(frame, template, force, inner)
     if skinned[frame] then return end
-    skinned[frame] = { template = template, force = not not force }
+    skinned[frame] = { template = template, force = not not force, inner = not not inner, current = template }
     apply(frame)
     hooksecurefunc(frame, "SetBackdrop", onSetBackdrop)
     hooksecurefunc(frame, "SetBackdropBorderColor", onBorderColor)
     if force then hooksecurefunc(frame, "SetBackdropColor", onBackdropColor) end
 end
 
----Puts ElvUI's template on every skinned frame again, after its media changed.
+---Puts ElvUI's template on every skinned frame again, after its media or the style changed.
 function Skin.Refresh()
     for frame in pairs(skinned) do
         apply(frame)
@@ -124,7 +148,7 @@ local function widget(frame)
     elseif kind == "Frame" and panel and frame.Button then
         S:HandleDropDownBox(frame)
     elseif kind == "EditBox" and frame.SetBackdrop then
-        Skin.Backdrop(frame, "Default", true)
+        Skin.Backdrop(frame, "Default", true, true)
     else
         walk(frame:GetChildren())
         return

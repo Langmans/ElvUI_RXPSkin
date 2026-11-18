@@ -51,7 +51,7 @@ end
 function Tests:ElvUISkinsHasTheHandlersUsed()
     local S = E:GetModule("Skins") ---@type ElvUISkins
     IsTrue(isFunction(S.HandleButton) and isFunction(S.HandleCheckBox) and isFunction(S.HandleCloseButton))
-    IsTrue(isFunction(S.HandleSliderFrame) and isFunction(S.HandleDropDownBox))
+    IsTrue(isFunction(S.HandleSliderFrame) and isFunction(S.HandleDropDownBox) and isFunction(S.HandleScrollBar))
     IsTrue(isFunction(S.AddCallbackForAddon))
 end
 
@@ -92,6 +92,15 @@ function Tests:BackdropColourReadsBack()
     IsTrue(near(select(4, f:GetBackdropColor()), 0.5))
 end
 
+function Tests:ColoursOnAFrameWithoutBackdropAreHarmless()
+    -- The translucent style leaves nested parts without a backdrop; RestedXP still colours them.
+    local f = Hidden("Frame", "BackdropTemplate")
+    f:SetTemplate("NoBackdrop", nil, true)
+    f:SetBackdropColor(1, 0, 0, 1)
+    f:SetBackdropBorderColor(1, 0, 0, 1)
+    IsFalse(f:GetBackdrop())
+end
+
 function Tests:TemplatesLeaveTheMarksWidgetsAreFoundBy()
     local button = Hidden("Button", "UIPanelButtonNoTooltipTemplate")
     Exists(button.Left and button.Middle and button.Right)
@@ -123,7 +132,12 @@ function Tests:RestedXPHasWhatTheSkinUses()
     local frame = rxp.RXPFrame
     Exists(frame.GuideName.bg and frame.Footer.bg and frame.BottomFrame)
     Exists(frame.CurrentStepFrame.framePool and frame.ScrollChild.framePool)
-    IsTrue(isFunction(frame.UpdateVisuals))
+    IsTrue(isFunction(frame.UpdateVisuals) and isFunction(frame.UpdateScrollBar))
+    Exists(frame.ScrollFrame.ScrollBar)
+    -- The Active Targets frame, once RestedXP built it, has its title tab.
+    ---@type table?
+    local targets = _G.RXPTargetFrame
+    if targets then Exists(targets.title) end
     if ns.db().restedxp then Exists(rxp.themes[ns.RestedXP.THEME]) end
 end
 
