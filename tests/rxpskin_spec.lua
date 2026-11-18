@@ -2,6 +2,15 @@
 -- installer and the API for other plugins, and the skins for RestedXP Guides, Loreward and
 -- RestedXP Navigator.
 
+---A frame's shadow as far as the tests look at it, or nil when it has none showing.
+---@param frame table
+---@return table?
+local function shadowOf(frame)
+    local s = frame.shadow
+    if not s or not s:IsShown() then return nil end
+    return { length = s.length, colored = s.colored, wind = s.wind }
+end
+
 ---@param c table an ElvUI colour
 ---@param a number? the alpha expected, default the colour's own or 1
 ---@return number[]
@@ -494,8 +503,32 @@ describe("Eltruism", function()
         local navigator = client:NavigatorWindow("RXPNavigatorNews")
         client:Tick()
         for _, frame in ipairs({ client.ns.RestedXP.shadowFrame, loreward, navigator }) do
-            assert.same({ length = 4, colored = true }, frame.shadow)
+            assert.same({ length = 4, colored = true }, shadowOf(frame))
         end
+    end)
+
+    it("takes the shadows off and puts them back with the switch, without a reload", function()
+        local client = NewClient({ eltruism = true })
+        local box = client:LorewardWindow("LorewardPlanWindow")
+        client:Tick()
+        local holder = client.ns.RestedXP.shadowFrame
+        client:Set("shadow", false)
+        assert.is_nil(shadowOf(holder))
+        assert.is_nil(shadowOf(box))
+        client:Set("shadow", true)
+        assert.same({ length = 4, colored = true }, shadowOf(holder))
+        assert.same({ length = 4, colored = true }, shadowOf(box))
+        assert.same({}, client.popups)
+    end)
+
+    it("makes the shadows when the switch goes on after a login with it off", function()
+        local client = NewClient({ eltruism = true, db = { shadow = false } })
+        local box = client:LorewardWindow("LorewardPlanWindow")
+        client:Tick()
+        assert.is_nil(shadowOf(box))
+        client:Set("shadow", true)
+        assert.same({ length = 4, colored = true }, shadowOf(box))
+        assert.same({ length = 4, colored = true }, shadowOf(client.ns.RestedXP.shadowFrame))
     end)
 
     it("puts the guide window's shadow round what shows, not round RestedXP's wider frame", function()
@@ -514,8 +547,8 @@ describe("Eltruism", function()
             local client = NewClient(opts)
             local box = client:LorewardWindow("LorewardPlanWindow")
             client:Tick()
-            assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
-            assert.is_nil(box.shadow)
+            assert.is_nil(shadowOf(client.ns.RestedXP.shadowFrame))
+            assert.is_nil(shadowOf(box))
         end
     end)
 end)
@@ -525,23 +558,23 @@ describe("WindTools", function()
         local client = NewClient({ windtools = true })
         local box = client:LorewardWindow("LorewardPlanWindow")
         client:Tick()
-        assert.same({ wind = true }, client.ns.RestedXP.shadowFrame.shadow)
-        assert.same({ wind = true }, box.shadow)
+        assert.same({ wind = true }, shadowOf(client.ns.RestedXP.shadowFrame))
+        assert.same({ wind = true }, shadowOf(box))
     end)
 
     it("leaves them out with its skins off", function()
         local client = NewClient({ windtools = false })
-        assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
+        assert.is_nil(shadowOf(client.ns.RestedXP.shadowFrame))
     end)
 
     it("gives way to Eltruism's shadow, so a window has one", function()
         local client = NewClient({ windtools = true, eltruism = true })
-        assert.same({ length = 4, colored = true }, client.ns.RestedXP.shadowFrame.shadow)
+        assert.same({ length = 4, colored = true }, shadowOf(client.ns.RestedXP.shadowFrame))
     end)
 
     it("leaves them out with its shadow option off, its skins on", function()
         local client = NewClient({ windtools = true, windtoolsShadow = false })
-        assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
+        assert.is_nil(shadowOf(client.ns.RestedXP.shadowFrame))
     end)
 end)
 
@@ -564,10 +597,10 @@ describe("the shadow variant", function()
 
     it("is none with the plugin's own shadow switch off", function()
         local client = NewClient({ eltruism = true, db = { shadow = false } })
-        assert.is_nil(client.ns.RestedXP.shadowFrame.shadow)
+        assert.is_nil(shadowOf(client.ns.RestedXP.shadowFrame))
         local box = client:LorewardWindow("LorewardPlanWindow")
         client:Tick()
-        assert.is_nil(box.shadow)
+        assert.is_nil(shadowOf(box))
     end)
 
     it("has its switch greyed out while neither Eltruism nor WindTools is loaded", function()

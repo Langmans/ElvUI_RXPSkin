@@ -26,6 +26,10 @@ local skinned = setmetatable({}, { __mode = "k" })
 local locked = setmetatable({}, { __mode = "k" })
 -- Widgets already handed to ElvUI's Skins.
 local handled = setmetatable({}, { __mode = "k" })
+-- The windows that take a shadow, so the switch can show and hide it later. Weak keys.
+---@type table<table, boolean>
+local shadowed = setmetatable({}, { __mode = "k" })
+local updateShadow -- with the shadows, below
 
 ---The backdrop alpha of the translucent style, or nil in ElvUI's own.
 ---@return number?
@@ -112,10 +116,14 @@ function Skin.Backdrop(frame, template, force, inner)
     if force then hooksecurefunc(frame, "SetBackdropColor", onBackdropColor) end
 end
 
----Puts ElvUI's template on every skinned frame again, after its media or the style changed.
+---Puts ElvUI's template on every skinned frame again, and the shadows in line with the switch,
+---after the media or a setting changed.
 function Skin.Refresh()
     for frame in pairs(skinned) do
         apply(frame)
+    end
+    for frame in pairs(shadowed) do
+        updateShadow(frame)
     end
 end
 
@@ -196,21 +204,35 @@ function Skin.ShadowVariant()
     return nil
 end
 
----A shadow round a window, as the variant in use puts one round the frames it skins: Eltruism's
----at its length and in its colour, WindTools' through its own CreateShadow. Nothing with the
----plugin's shadow switch off, and one shadow at most.
+---Shows a window's shadow, made the first time as the variant in use makes one (Eltruism's at its
+---length and in its colour, WindTools' through its own CreateShadow); hides it with the plugin's
+---switch off or no variant. A shadow once made stays in its variant's look.
+---@param frame table
+updateShadow = function(frame)
+    local variant = ns.db().shadow and Skin.ShadowVariant()
+    if not variant then
+        if frame.shadow then frame.shadow:Hide() end
+        return
+    end
+    if not frame.shadow then
+        if variant == Skin.shadows.eltruism then
+            local eltruism = _G.ElvUI_EltreumUI --[[@as EltruismAddon]]
+            frame:CreateShadow(E.db.ElvUI_EltreumUI.skins.shadow.length)
+            eltruism:ShadowColor(frame.shadow)
+        else
+            local windTools = _G.WindTools --[[@as WindToolsGlobal]]
+            windTools[1].Modules.Skins:CreateShadow(frame)
+        end
+    end
+    if frame.shadow then frame.shadow:Show() end
+end
+
+---Gives a window a shadow, as the ElvUI edit in use puts one round the frames it skins, and keeps
+---it following the plugin's shadow switch.
 ---@param frame table
 function Skin.Shadow(frame)
-    if frame.shadow or not ns.db().shadow then return end
-    local variant = Skin.ShadowVariant()
-    if variant == Skin.shadows.eltruism then
-        local eltruism = _G.ElvUI_EltreumUI --[[@as EltruismAddon]]
-        frame:CreateShadow(E.db.ElvUI_EltreumUI.skins.shadow.length)
-        eltruism:ShadowColor(frame.shadow)
-    elseif variant == Skin.shadows.windtools then
-        local windTools = _G.WindTools --[[@as WindToolsGlobal]]
-        windTools[1].Modules.Skins:CreateShadow(frame)
-    end
+    shadowed[frame] = true
+    updateShadow(frame)
 end
 
 ---Skins a window and its widgets, and the widgets it gains later each time it is shown.

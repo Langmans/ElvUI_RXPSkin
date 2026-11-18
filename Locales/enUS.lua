@@ -2,7 +2,7 @@ local L = LibStub("AceLocale-3.0"):NewLocale((...), "enUS", true)
 
 L.TITLE = "RXP Skin"
 L.DESC =
-    "ElvUI's look for RestedXP Guides, Loreward and RestedXP Navigator. A skin that is switched off is gone after a reload."
+    "ElvUI's look for RestedXP Guides, Loreward, RestedXP Navigator and Waymark's As Told panel. A skin that is switched off is gone after a reload."
 
 L.restedxp_TITLE = "RestedXP Guides"
 L.restedxp_DESC =

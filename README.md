@@ -70,7 +70,8 @@ or a value out of range; calling it counts as the installer having run. `ShowIns
   button's atlas) and each is skinned once, also those added later (on the window's `OnShow`).
 - **Shadows**: `Skin.ShadowVariant()` says which edit's shadow is in use: Eltruism's
   (`E.db.ElvUI_EltreumUI.skins.shadow.enable`) first, else WindTools' (`E.private.WT.skins.enable`
-  and `.shadow`).
+  and `.shadow`). The windows that take one are remembered, so the plugin's switch shows, hides or
+  first makes their shadows without a reload.
 - ElvUI's Skins calls each addon's skin through `S:AddCallbackForAddon`, registered as the files
   load: Skins starts before any plugin's module.
 

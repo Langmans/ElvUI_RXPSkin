@@ -12,12 +12,15 @@ local function get(info)
     return ns.db()[info[#info]] --[[@as boolean|string|number]]
 end
 
+-- The switches that take effect both ways at once; switching off any other skin needs a reload.
+local live = { hideArt = true, shadow = true }
+
 ---@param info string[]
 ---@param value boolean|string|number
 local function set(info, value)
     local key = info[#info]
     ns.db()[key] = value
-    if value == false and key ~= "hideArt" then E:StaticPopup_Show("CONFIG_RL") end
+    if value == false and not live[key] then E:StaticPopup_Show("CONFIG_RL") end
     ns.Update()
 end
 

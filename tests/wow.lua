@@ -201,7 +201,8 @@ function NewClient(opts)
         end
         ---Toolkit.lua's CreateShadow: a shadow frame of the given size round the frame.
         function f:CreateShadow(size)
-            self.shadow = { length = size }
+            self.shadow = Frame("Frame", nil, self)
+            self.shadow.length = size
         end
         if template == "BackdropTemplate" then client.Mixin(f) end
         -- What the Blizzard templates leave on a widget (InGame/Tests.lua checks these in the game).
@@ -484,7 +485,8 @@ function NewClient(opts)
         E.private.WT = { skins = { enable = opts.windtools, shadow = opts.windtoolsShadow ~= false } }
         local skins = {
             CreateShadow = function(_, frame)
-                frame.shadow = { wind = true }
+                frame.shadow = Frame("Frame", nil, frame)
+                frame.shadow.wind = true
             end,
         }
         _G.WindTools = { { Modules = { Skins = skins } } }
