@@ -151,6 +151,16 @@ function Tests:NavigatorHasItsColourTable()
     end
 end
 
+function Tests:WaymarksPanelHasItsGlassOnItselfAndItsWordsAbove()
+    ---@type table?
+    local panel = _G.WaymarkToldPanel
+    if not panel then return end
+    IsTrue(select("#", panel:GetRegions()) > 0)
+    local words = panel:GetChildren() --[[@as table]]
+    Exists(words)
+    IsTrue(words:GetFrameLevel() > panel:GetFrameLevel())
+end
+
 function Tests:EltruismAndWindToolsHaveTheirShadowSettings()
     local eltruism = _G.ElvUI_EltreumUI
     if eltruism then

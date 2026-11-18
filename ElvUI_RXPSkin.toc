@@ -4,7 +4,7 @@
 ## Author: Langmans
 ## Version: @project-version@
 ## RequiredDeps: ElvUI
-## OptionalDeps: RXPGuides, Loreward, RXP_Navigator, ElvUI_EltreumUI, ElvUI_WindTools, WoWUnit
+## OptionalDeps: RXPGuides, Loreward, RXP_Navigator, Waymark, ElvUI_EltreumUI, ElvUI_WindTools, WoWUnit
 ## X-License: MIT
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 
@@ -14,6 +14,7 @@ Skin.lua
 RestedXP.lua
 Loreward.lua
 Navigator.lua
+Waymark.lua
 Install.lua
 Options.lua
 

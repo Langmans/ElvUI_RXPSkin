@@ -19,6 +19,7 @@
 ---@field eltruism boolean? Eltruism (ElvUI_EltreumUI) is loaded, with its shadows on (true) or off
 ---@field windtools boolean? ElvUI_WindTools is loaded, with its skins on (true) or off
 ---@field windtoolsShadow boolean? WindTools' own shadow option, default on
+---@field waymark boolean? default true: Waymark is loaded
 
 ---@param t table
 ---@return table
@@ -139,8 +140,8 @@ function NewClient(opts)
         f.shown, f.parent, f.points = true, parent, {}
         -- A child sits one level above its parent, as the client stacks them.
         f.level = parent and parent.level and parent.level + 1 or 1
-        function f:SetPoint(point, relativeTo, relativePoint)
-            self.points[#self.points + 1] = { point, relativeTo, relativePoint }
+        function f:SetPoint(point, relativeTo, relativePoint, x, y)
+            self.points[#self.points + 1] = { point, relativeTo, relativePoint, x, y }
         end
         function f:GetFrameLevel()
             return self.level
@@ -459,6 +460,7 @@ function NewClient(opts)
         return (addonName == "RXPGuides" and opts.rxp ~= false)
             or (addonName == "Loreward" and opts.loreward ~= false)
             or (addonName == "RXP_Navigator" and client.navigator ~= nil)
+            or (addonName == "Waymark" and opts.waymark ~= false)
     end
     C_AddOns = { IsAddOnLoaded = isLoaded }
 
@@ -548,6 +550,17 @@ function NewClient(opts)
             return {}
         end
         return box
+    end
+    ---Waymark's As Told panel (AsToldPanel.lua's Build), made the first time it shows: its glass as
+    ---textures on the panel itself, its words in a child frame over all of it with the gold mark
+    ---behind a name under the pointer.
+    ---@return table
+    function client:WaymarkPanel()
+        local panel = Frame("Frame", "WaymarkToldPanel", UIParent)
+        panel.glass = { panel:CreateTexture(), panel:CreateTexture(), panel:CreateTexture() }
+        panel.body = Frame("Frame", nil, panel)
+        panel.body.mark = panel.body:CreateTexture()
+        return panel
     end
     ---A RestedXP Navigator window: a close button and a drop-down menu.
     ---@param windowName string

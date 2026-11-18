@@ -14,6 +14,8 @@ L.loreward_DESC =
     "Loreward's windows and cards in ElvUI's colours and borders, its buttons and check boxes in ElvUI's style."
 L.navigator_TITLE = "RestedXP Navigator"
 L.navigator_DESC = "Navigator's windows in ElvUI's colours, its close buttons and drop-downs in ElvUI's style."
+L.waymark_TITLE = "Waymark"
+L.waymark_DESC = "Waymark's As Told panel on ElvUI's backdrop instead of its dark glass."
 L.hideArt_TITLE = "Hide RestedXP's banners"
 L.hideArt_DESC = "No RestedXP banner behind the guide name and the footer."
 L.shadow_TITLE = "Shadows"

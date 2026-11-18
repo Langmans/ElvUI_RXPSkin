@@ -9,12 +9,13 @@ local E, V, P = ElvUI[1], ElvUI[3], ElvUI[4]
 ns.NAME = NAME
 ns.addons = {}
 -- The switches other plugins may set through the API, with the option page's order.
-ns.SWITCHES = { "restedxp", "loreward", "navigator", "hideArt", "shadow" }
+ns.SWITCHES = { "restedxp", "loreward", "navigator", "waymark", "hideArt", "shadow" }
 
 P[NAME] = {
     restedxp = true,
     loreward = true,
     navigator = true,
+    waymark = true,
     hideArt = true,
     shadow = true,
     style = "elvui",
@@ -84,7 +85,7 @@ local API = {}
 _G[NAME] = API
 
 ---Sets the plugin up as its installer would, and counts as the installer having run.
----`settings` holds booleans by the option keys (restedxp, loreward, navigator, hideArt, shadow),
+---`settings` holds booleans by the option keys (restedxp, loreward, navigator, waymark, hideArt, shadow),
 ---`style` ("elvui" or "translucent") and `alpha` (0 to 1, the translucent backdrop's); anything
 ---else, or a value out of range, is ignored. `rxpTheme = true` also puts RestedXP Guides on the
 ---ElvUI theme.

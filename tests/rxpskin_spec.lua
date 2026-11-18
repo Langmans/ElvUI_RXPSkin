@@ -31,6 +31,7 @@ describe("the plugin", function()
             restedxp = true,
             loreward = true,
             navigator = true,
+            waymark = true,
             hideArt = true,
             shadow = true,
             style = "elvui",
@@ -64,8 +65,8 @@ describe("the installer", function()
     it("has a page per loaded addon between its welcome and its end", function()
         local client = NewClient()
         client:RunDelays()
-        assert.equals(5, #client.PI.queue[1].Pages)
-        client = NewClient({ loreward = false, navigator = false })
+        assert.equals(6, #client.PI.queue[1].Pages)
+        client = NewClient({ loreward = false, navigator = false, waymark = false })
         client:RunDelays()
         assert.equals(3, #client.PI.queue[1].Pages)
     end)
@@ -89,7 +90,7 @@ describe("the installer", function()
         assert.is_false(client:Db().restedxp)
     end)
 
-    it("turns the Loreward and Navigator skins on or off", function()
+    it("turns the Loreward, Navigator and Waymark skins on or off", function()
         local client = NewClient()
         client:RunDelays()
         client:InstallPage(3)
@@ -101,12 +102,15 @@ describe("the installer", function()
         client:InstallPage(4)
         client:Click(1)
         assert.is_true(client:Db().navigator)
+        client:InstallPage(5)
+        client:Click(2)
+        assert.is_false(client:Db().waymark)
     end)
 
     it("is done on its last page, which offers a reload", function()
         local client = NewClient()
         client:RunDelays()
-        client:InstallPage(5)
+        client:InstallPage(6)
         client:Click(1)
         assert.is_true(client.E.private.ElvUI_RXPSkin.installed)
         assert.is_true(client.reloaded)
@@ -164,7 +168,7 @@ describe("the options page", function()
     it("is a page in ElvUI's options with a switch per addon", function()
         local page = NewClient():LoadOptions()
         assert.equals("group", page.type)
-        for _, key in ipairs({ "restedxp", "loreward", "navigator", "hideArt", "shadow" }) do
+        for _, key in ipairs({ "restedxp", "loreward", "navigator", "waymark", "hideArt", "shadow" }) do
             assert.equals("toggle", page.args[key].type)
             assert.is_true(page.get({ key }))
         end
@@ -373,7 +377,7 @@ describe("Loreward", function()
     end)
 
     it("stops looking once every window it knows is there", function()
-        local client = NewClient({ rxp = false })
+        local client = NewClient({ rxp = false, waymark = false })
         assert.equals(1, client:LiveTimers())
         for _, windowName in ipairs(client.ns.Loreward.WINDOWS) do
             client:LorewardWindow(windowName)
@@ -383,10 +387,39 @@ describe("Loreward", function()
     end)
 
     it("is left alone with its switch off, or without Loreward", function()
-        -- Without RestedXP too, whose skin looks for its Active Targets frame.
-        assert.equals(0, NewClient({ loreward = false, rxp = false }):LiveTimers())
-        local client = NewClient({ db = { loreward = false }, rxp = false })
+        -- Without RestedXP and Waymark too, whose skins look for frames of their own.
+        assert.equals(0, NewClient({ loreward = false, rxp = false, waymark = false }):LiveTimers())
+        local client = NewClient({ db = { loreward = false }, rxp = false, waymark = false })
         assert.equals(0, client:LiveTimers())
+    end)
+end)
+
+describe("Waymark", function()
+    it("hides the As Told panel's glass and puts ElvUI's backdrop under its words", function()
+        local client = NewClient({ eltruism = true })
+        local panel = client:WaymarkPanel()
+        client:Tick()
+        for _, texture in ipairs(panel.glass) do
+            assert.is_false(texture:IsShown())
+        end
+        assert.is_true(panel.body.mark:IsShown())
+        local backdrop = client.ns.Waymark.backdrop
+        assert.equals(panel, backdrop.parent)
+        assert.equals("Transparent", backdrop.template)
+        assert.same({ "TOPLEFT", panel, "TOPLEFT", 0, 0 }, backdrop.points[1])
+        assert.same({ "BOTTOMRIGHT", panel, "BOTTOMRIGHT", -18, 0 }, backdrop.points[2])
+        assert.equals(panel.level, backdrop.level)
+        assert.is_true(panel.body.level > backdrop.level)
+        assert.is_table(backdrop.shadow)
+    end)
+
+    it("is left alone with its switch off, or without Waymark", function()
+        for _, opts in ipairs({ { db = { waymark = false } }, { waymark = false } }) do
+            local client = NewClient(opts)
+            local panel = client:WaymarkPanel()
+            client:Tick()
+            assert.is_true(panel.glass[1]:IsShown())
+        end
     end)
 end)
 

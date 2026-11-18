@@ -71,6 +71,7 @@ ElvUI = nil
 ---@field restedxp boolean skin RestedXP Guides and offer the ElvUI theme
 ---@field loreward boolean skin Loreward's windows
 ---@field navigator boolean skin RestedXP Navigator's windows
+---@field waymark boolean skin Waymark's As Told panel
 ---@field hideArt boolean hide RestedXP's banners
 ---@field shadow boolean Eltruism's or WindTools' shadow round the skinned windows
 ---@field style string one of Skin.styles: "elvui" or "translucent"
@@ -225,3 +226,4 @@ PluginInstallFrame = nil
 ---@field RestedXP ElvUIRXPSkinRestedXP
 ---@field Loreward ElvUIRXPSkinLoreward
 ---@field Navigator ElvUIRXPSkinNavigator
+---@field Waymark ElvUIRXPSkinWaymark

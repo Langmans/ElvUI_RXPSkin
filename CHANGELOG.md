@@ -10,3 +10,4 @@
 - RestedXP's step list scroll bar and its Active Targets frame skinned too.
 - A translucent style: see-through windows at a chosen alpha, nested parts without backdrop.
 - The guide window's shadow sits on its visible edge instead of 3 pixels outside it.
+- Waymark's As Told panel on ElvUI's backdrop, with its own switch and installer page.
