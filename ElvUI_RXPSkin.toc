@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: |cff1784d1ElvUI|r RXP Skin
+## Notes: Gives RestedXP Guides, Loreward and RestedXP Navigator ElvUI's look: an ElvUI theme for RestedXP, ElvUI's borders, colours and widgets on their windows.
+## Author: Langmans
+## Version: @project-version@
+## RequiredDeps: ElvUI
+## OptionalDeps: RXPGuides, Loreward, RXP_Navigator, ElvUI_EltreumUI, ElvUI_WindTools, WoWUnit
+## X-License: MIT
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+
+Locales\enUS.lua
+Core.lua
+Skin.lua
+RestedXP.lua
+Loreward.lua
+Navigator.lua
+Install.lua
+Options.lua
+
+#@debug@
+InGame\Tests.lua
+#@end-debug@

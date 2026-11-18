@@ -1,0 +1,218 @@
+---@meta
+-- Editor-only types: the parts of ElvUI, RestedXP Guides, RestedXP Navigator and Eltruism the plugin
+-- touches, as their own code defines them (ElvUI's General\Core.lua, Toolkit.lua, Skins.lua and
+-- PluginInstaller.lua; RestedXP's Themes.lua and GuideWindow.lua; Navigator's UI\Theme.lua), and
+-- the plugin's own tables. Not in the .toc, not in releases.
+
+---ElvUI's global: { E, L, V, P, G }; the plugin uses the engine, private and profile defaults.
+---@class ElvUIGlobal
+---@field [1] ElvUIEngine
+---@field [3] table<string, table> private defaults (V)
+---@field [4] table<string, table> profile defaults (P)
+
+---@type ElvUIGlobal
+ElvUI = nil
+
+---An ElvUI colour: a table with r, g, b and sometimes a.
+---@class ElvUIColor
+---@field r number
+---@field g number
+---@field b number
+---@field a? number
+
+---@class ElvUIMedia
+---@field backdropcolor ElvUIColor
+---@field backdropfadecolor ElvUIColor
+---@field bordercolor ElvUIColor
+---@field rgbvaluecolor ElvUIColor
+---@field hexvaluecolor string the value colour as "|cffrrggbb"
+---@field blankTex string
+---@field normFont string the file of ElvUI's general font
+
+---@class ElvUIEngine
+---@field media ElvUIMedia
+---@field mult number one screen pixel in UI units
+---@field db table<string, any> the profile; the plugin's settings under its folder name
+---@field public private table<string, any> the private settings; install_complete once ElvUI's installer ran
+---@field Libs {ACH: LibAceConfigHelper}
+---@field Options {args: table<string, table>}
+---@field NewModule fun(self: ElvUIEngine, name: string, ...: string): ElvUIRXPSkinModule
+---@field RegisterModule fun(self: ElvUIEngine, name: string)
+---@field GetModule fun(self: ElvUIEngine, name: string): any
+---@field UpdateMedia fun(self: ElvUIEngine, mediaType: string?)
+---@field Delay fun(self: ElvUIEngine, delay: number, fn: function, ...: any)
+---@field StaticPopup_Show fun(self: ElvUIEngine, which: string)
+
+---The plugin's module: an ElvUI module with AceHook mixed in.
+---@class ElvUIRXPSkinModule
+---@field GetName fun(self: ElvUIRXPSkinModule): string
+---@field SecureHook fun(self: ElvUIRXPSkinModule, object: table, method: string, handler: string)
+
+---@class LibElvUIPlugin
+---@field RegisterPlugin fun(self: LibElvUIPlugin, name: string, callback: fun())
+
+---ElvUI's LibAceConfigHelper: AceConfig tables in one call each.
+---@class LibAceConfigHelper
+---@field Group fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, childGroups: string?, get: function?, set: function?): {args: table<string, table>}
+---@field Toggle fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, tristate: boolean?, confirm: boolean?, width: string?, get: function?, set: function?, disabled: function?): table
+---@field Execute fun(self: LibAceConfigHelper, name: string, desc: string?, order: number, func: function): table
+---@field Description fun(self: LibAceConfigHelper, name: string, order: number): table
+
+---ElvUI's Toolkit adds these to every frame.
+---@class Frame
+---@field SetTemplate fun(self: Frame, template: string?, glossTex: string|boolean?, ignoreUpdates: boolean?)
+---@field CreateShadow fun(self: Frame, size: number?)
+---@field shadow? Frame the shadow CreateShadow made
+
+---The plugin's settings in ElvUI's profile.
+---@class ElvUIRXPSkinSettings
+---@field restedxp boolean skin RestedXP Guides and offer the ElvUI theme
+---@field loreward boolean skin Loreward's windows
+---@field navigator boolean skin RestedXP Navigator's windows
+---@field hideArt boolean hide RestedXP's banners
+---@field shadow boolean Eltruism's or WindTools' shadow round the skinned windows
+
+---An addon the plugin skins: a module in ns.addons.
+---@class ElvUIRXPSkinAddon
+---@field ADDON string the addon's folder name
+---@field key string its switch in the settings
+---@field present? boolean the addon is loaded
+---@field applied? boolean Load ran
+---@field Load fun(self: ElvUIRXPSkinAddon) the first skinning, once the addon is loaded and switched on
+---@field Update fun(self: ElvUIRXPSkinAddon) again after a setting or ElvUI's media changed
+---@field UseTheme? fun() its installer step, when "skin it" does more than the switch
+
+---A RestedXP theme (Themes.lua): colours as { r, g, b, a }, missing fields from RXP Blue's.
+---@class RXPGuidesTheme
+---@field name string
+---@field displayName string
+---@field author string
+---@field applicable boolean
+---@field background number[]
+---@field bottomFrameBG number[]
+---@field bottomFrameHighlight number[]
+---@field mapPins number[]
+---@field tooltip? string
+---@field font? string
+---@field bgTextures {edge: string?, bottom: string?}
+
+---A theme's v2 copy, made by ConvertThemes.
+---@class RXPGuidesThemeV2
+---@field borderColors table<string, number[]>
+---@field edge {edgeFile: string, edgeSize: number}
+
+---A step frame of RestedXP's v1 window, with its number box.
+---@class RXPGuidesStepFrame : Frame
+---@field number Frame
+
+---RestedXP's v1 guide window (GuideWindow.lua).
+---@class RXPGuidesFrame : Frame
+---@field BottomFrame Frame
+---@field GuideName Frame|{bg: Texture}
+---@field Footer Frame|{bg: Texture}
+---@field CurrentStepFrame {framePool: RXPGuidesStepFrame[]}
+---@field ScrollChild {framePool: Frame[]}
+---@field UpdateVisuals fun(self: RXPGuidesFrame)
+
+---RestedXP Guides' AceAddon object, the parts the plugin touches.
+---@class RXPGuidesAddon
+---@field settings {profile: {activeTheme: string}}
+---@field themes table<string, RXPGuidesTheme> the v1 themes by name
+---@field v2 {themes: table<string, RXPGuidesThemeV2>, IsGuideWindowEnabled: fun(self: table): boolean, ConvertThemes: fun(self: table)}
+---@field RXPFrame RXPGuidesFrame
+---@field RegisterTheme fun(self: RXPGuidesAddon, theme: RXPGuidesTheme)
+---@field RenderFrame fun(themeUpdate: boolean?)
+---@field SetStep fun(n: number)
+---@field LoadGuide fun(self: RXPGuidesAddon, ...: any)
+
+---RestedXP Navigator's global, the colour table its UI helper builds panels from.
+---@class RXPNavigatorGlobal
+---@field UI? {colors: table<string, number[]>}
+
+---@type RXPNavigatorGlobal?
+RXPNavigator = nil
+
+---ElvUI's Skins module (Modules\Skins\Skins.lua), the functions the plugin calls.
+---@class ElvUISkins
+---@field HandleButton fun(self: ElvUISkins, button: table)
+---@field HandleCloseButton fun(self: ElvUISkins, button: table)
+---@field HandleCheckBox fun(self: ElvUISkins, checkbox: table)
+---@field HandleSliderFrame fun(self: ElvUISkins, slider: table)
+---@field HandleDropDownBox fun(self: ElvUISkins, dropdown: table)
+---@field AddCallbackForAddon fun(self: ElvUISkins, addonName: string, name: string, func: fun())
+
+---ElvUI's PluginInstaller (General\PluginInstaller.lua).
+---@class ElvUIPluginInstaller
+---@field Queue fun(self: ElvUIPluginInstaller, install: {Title: string, Name: string, Pages: function[], StepTitles: string[]})
+---@field CloseInstall fun(self: ElvUIPluginInstaller)
+
+---Eltruism's addon object: ShadowColor colours a shadow CreateShadow made.
+---@class EltruismAddon
+---@field ShadowColor fun(self: EltruismAddon, shadow: Frame?)
+
+---@type EltruismAddon?
+ElvUI_EltreumUI = nil
+
+---Eltruism's shadow settings in ElvUI's profile (E.db.ElvUI_EltreumUI.skins.shadow).
+---@class EltruismShadowSettings
+---@field enable boolean
+---@field length number
+
+---WindTools' skin settings in ElvUI's private settings (E.private.WT.skins).
+---@class WindToolsSkinSettings
+---@field enable boolean
+---@field shadow boolean
+
+---WindTools' global: its namespace, [1] the addon with its modules.
+---@class WindToolsGlobal
+---@field [1] {Modules: {Skins: {CreateShadow: fun(self: table, frame: table)}}}
+
+---@type WindToolsGlobal?
+WindTools = nil
+
+---Install.lua.
+---@class ElvUIRXPSkinInstall
+---@field Done fun(): boolean
+---@field Finish fun()
+---@field Queue fun(again: boolean?)
+
+---Skin.lua.
+---@class ElvUIRXPSkinSkin
+---@field Backdrop fun(frame: table, template: string, force: boolean?)
+---@field Refresh fun()
+---@field Widgets fun(frame: table)
+---@field Shadow fun(frame: table)
+---@field shadows {eltruism: string, windtools: string} the shadow variants
+---@field ShadowVariant fun(): string?
+---@field ShadowAddonLoaded fun(): boolean
+---@field Window fun(frame: table, template: string?)
+---@field Watch fun(names: string[], fn: fun(frame: table))
+
+---ElvUI's PluginInstaller frame: a title, three lines of text and four option buttons.
+---@class ElvUIPluginInstallFrame : Frame
+---@field SubTitle FontString
+---@field Desc1 FontString
+---@field Desc2 FontString
+---@field Desc3 FontString
+---@field Option1 Button
+---@field Option2 Button
+---@field Option3 Button
+---@field Option4 Button
+
+---@type ElvUIPluginInstallFrame
+PluginInstallFrame = nil
+
+---The addon's namespace.
+---@class ElvUIRXPSkinNamespace
+---@field NAME string the folder name
+---@field addons ElvUIRXPSkinAddon[]
+---@field SWITCHES string[]
+---@field db fun(): ElvUIRXPSkinSettings
+---@field Update fun()
+---@field AddAddon fun(module: ElvUIRXPSkinAddon)
+---@field InsertOptions fun()
+---@field Skin ElvUIRXPSkinSkin
+---@field Install ElvUIRXPSkinInstall
+---@field RestedXP ElvUIRXPSkinRestedXP
+---@field Loreward ElvUIRXPSkinLoreward
+---@field Navigator ElvUIRXPSkinNavigator

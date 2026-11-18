@@ -1,0 +1,8 @@
+package-as: ElvUI_RXPSkin
+
+ignore:
+  - annotations
+  - coverage
+  - tests
+  - elvui_rxpskin-dev-1.rockspec
+  - stylua.toml
